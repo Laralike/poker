@@ -61,10 +61,12 @@ const SYNC_VIEW_SCHEMA_VERSION = 7;
 const devOrigin = "http://127.0.0.1:5500";
 const STATE_TTL = 86_400_000;
 const ACTION_TTL = 120_000;
-// A seat counts as "on its own device" for this long after its last poll. Long enough to ride out a
-// dropped request or a phone that briefly slept, short enough that the shared table takes the seat
-// back quickly when someone actually walks away.
-const PRESENCE_TTL = 15_000;
+// A seat counts as "on its own device" for this long after its last poll. Generous on purpose: a
+// closed lid, a flat battery or a browser that needed reopening should not cost you your seat, and
+// handing it back early is not free -- your options appear on the shared screen for everyone. It
+// costs nothing to wait, because the moment the device checks in again the controls return to it,
+// and anyone at the table can take the turn over by hand without waiting at all.
+const PRESENCE_TTL = 60_000;
 // Presence is refreshed at most this often, so a 750ms poll does not mean a write every 750ms.
 const PRESENCE_WRITE_INTERVAL = 4_000;
 const allowedActionNames = new Set(["fold", "check", "call", "raise", "allin"]);
@@ -202,6 +204,20 @@ function touchSeatPresence(tableId, seatIndex) {
 	return nextSeats;
 }
 
+// How long ago each live seat was last heard from. The shared table uses this to tell "they are
+// sitting there thinking" apart from "they have gone quiet and may have dropped out", which read
+// identically before and made the waiting message quietly misleading.
+function getSeatsLastSeen(seats, now = Date.now()) {
+	const ages = {};
+	for (const [seatIndex, lastSeen] of Object.entries(seats)) {
+		const parsed = Number(lastSeen);
+		if (Number.isFinite(parsed) && now - parsed <= PRESENCE_TTL) {
+			ages[seatIndex] = now - parsed;
+		}
+	}
+	return ages;
+}
+
 // Seat indexes whose device has checked in recently enough to be trusted with its own turn.
 function getLiveSeatIndexes(seats, now = Date.now()) {
 	return Object.entries(seats)
@@ -269,7 +285,8 @@ async function handlePostState(request, origin) {
 
 	const tableId = data.tableId || "default";
 	const record = saveState(tableId, { view });
-	const presentSeats = getLiveSeatIndexes(getSeatPresence(tableId));
+	const seats = getSeatPresence(tableId);
+	const presentSeats = getLiveSeatIndexes(seats);
 	return jsonResponse({
 		ok: true,
 		version: record.version,
@@ -277,6 +294,7 @@ async function handlePostState(request, origin) {
 		schemaVersion: record.schemaVersion,
 		// The host uses this to decide whether a seat's controls belong on the shared screen.
 		presentSeats,
+		seatsLastSeen: getSeatsLastSeen(seats),
 	}, origin);
 }
 
@@ -357,12 +375,14 @@ function handleGetAction(url, origin) {
 	}
 
 	const record = consumePendingAction(tableId, turnToken);
-	const presentSeats = getLiveSeatIndexes(getSeatPresence(tableId));
+	const seats = getSeatPresence(tableId);
+	const presentSeats = getLiveSeatIndexes(seats);
+	const seatsLastSeen = getSeatsLastSeen(seats);
 	// The action's own fields stay at the top level, where they have always been, and presence is
 	// added beside them. Wrapping them instead would silently break any page still running an older
 	// copy of the script -- it would read no action, and the player's move would vanish with their
 	// buttons stuck greyed out. Caches make that a certainty, not a risk.
-	return jsonResponse({ ...(record ?? {}), presentSeats }, origin);
+	return jsonResponse({ ...(record ?? {}), presentSeats, seatsLastSeen }, origin);
 }
 
 // Joining from a laptop means typing a code, which means something has to answer "what seats does

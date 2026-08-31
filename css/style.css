@@ -919,6 +919,10 @@ JOIN PAGE
 	text-align: center;
 }
 
+.remote-turn-status.setup-warning {
+	color: var(--yellow-active);
+}
+
 .remote-turn-status button {
 	width: auto;
 	margin: 0;

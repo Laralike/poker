@@ -254,6 +254,9 @@ if (SPEED_MODE) {
 let tableId = null;
 // Seat indexes whose own device has checked in recently. Empty unless the backend says otherwise.
 let presentRemoteSeats = new Set();
+// How long ago each of those was last heard from, in ms. Lets the table say whether someone is
+// sitting there thinking or has gone quiet, which look identical from the outside.
+let remoteSeatLastSeen = {};
 // When that set was last confirmed. Nothing is known before the first successful reply, and showing
 // a seat's cards-in-hand options on the shared screen during that gap is exactly the leak we are
 // trying to close, so the table waits briefly rather than assuming nobody joined.
@@ -262,6 +265,8 @@ const STATE_SYNC_DELAY = 750;
 const ACTION_POLL_INTERVAL = 1000;
 // How often the shared table re-checks whether a seat's device is still there while waiting on it.
 const REMOTE_TURN_REVIEW_INTERVAL = 1000;
+// After this much silence from a device, stop implying its owner is sitting there playing.
+const QUIET_DEVICE_SECONDS = 20;
 // How long a turn holds back the shared controls while it finds out whether that seat has a device.
 const PRESENCE_GRACE_INTERVAL = 2500;
 let stateSyncTimer = null;
@@ -2006,6 +2011,7 @@ async function fetchPendingRemoteAction(turnToken) {
 		// The same reply tells us which seats are live on their own devices.
 		const payload = await res.json();
 		setPresentRemoteSeats(payload?.presentSeats);
+		setSeatLastSeen(payload?.seatsLastSeen);
 		presenceRefreshedAt = Date.now();
 		// An action is present only when it carries a turn token. Everything else in the reply is
 		// presence, and an empty reply means there is nothing waiting.
@@ -2023,6 +2029,15 @@ Which seats are being played from their own device. The backend refreshes a hear
 polls, and hands the live set back on every state push, so the shared table knows whose controls it
 should not be showing.
 ---------------------------------------------------------------------------------------------------*/
+
+function setSeatLastSeen(seatsLastSeen) {
+	remoteSeatLastSeen = (seatsLastSeen && typeof seatsLastSeen === "object") ? seatsLastSeen : {};
+}
+
+function getSeatQuietMs(player) {
+	const age = Number(remoteSeatLastSeen[player?.seatIndex]);
+	return Number.isFinite(age) ? age : 0;
+}
 
 function setPresentRemoteSeats(seatIndexes) {
 	const nextSeats = new Set(
@@ -2071,11 +2086,13 @@ async function sendTableState() {
 		}
 		const result = await res.json();
 		setPresentRemoteSeats(result?.presentSeats);
+		setSeatLastSeen(result?.seatsLastSeen);
 	} catch (error) {
 		logFlow("state sync failed", error);
 		// Losing contact with the backend must not strand a seat on a device we can no longer hear
 		// from; hand every seat back to the shared screen until sync recovers.
 		setPresentRemoteSeats([]);
+		setSeatLastSeen({});
 		queueStateSync();
 	}
 }
@@ -2199,9 +2216,19 @@ function renderRemoteTurnStatus(player, takeOver, { awaitingPresence = false } =
 		return;
 	}
 
-	remoteTurnMessageEl.textContent = awaitingPresence
-		? `Checking whether ${player.name} has joined on their own device…`
-		: `${player.name} is playing this turn on their own device.`;
+	// Once a device has been quiet for a while it may just be a slow decision, or the laptop may be
+	// shut. Saying which lets whoever is at the table decide whether to wait or step in, instead of
+	// being told someone is "playing" when they may have gone.
+	const quietSeconds = Math.round(getSeatQuietMs(player) / 1000);
+	if (awaitingPresence) {
+		remoteTurnMessageEl.textContent = `Checking whether ${player.name} has joined on their own device…`;
+	} else if (quietSeconds >= QUIET_DEVICE_SECONDS) {
+		remoteTurnMessageEl.textContent = `Waiting for ${player.name}. Their device has not been in touch for ` +
+			`${quietSeconds} seconds — take the turn here if they have dropped out.`;
+	} else {
+		remoteTurnMessageEl.textContent = `${player.name} is playing this turn on their own device.`;
+	}
+	remoteTurnStatusEl.classList.toggle("setup-warning", quietSeconds >= QUIET_DEVICE_SECONDS);
 	remoteTurnStatusEl.classList.remove("hidden");
 }
 
@@ -4022,7 +4049,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v5";
+const SERVICE_WORKER_VERSION = "2026-08-31-v6";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

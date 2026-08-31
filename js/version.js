@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.10.1";
+export const APP_VERSION = "1.11.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.11.0",
+		date: "2026-08-31",
+		title: "A minute to get back to your seat",
+		notes: [
+			"Closing a laptop or letting a phone sleep no longer costs you your seat for a full minute, so there is time to reopen it and carry on where you left off.",
+			"While the table waits, it now says how long a device has been out of touch, so the room can tell someone thinking from someone who has dropped out — and take the turn over by hand if they have.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.10.1",
 		date: "2026-08-31",
