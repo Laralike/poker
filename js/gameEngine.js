@@ -413,9 +413,7 @@ export function createShowdownCommitPlan(gameState, showdownResult) {
 			pot: 0,
 		},
 		transferQueue: showdownResult.transferQueue.slice(),
-		revealPlayers: showdownResult.hadShowdown
-			? showdownResult.activePlayers.slice()
-			: [],
+		revealPlayers: showdownResult.hadShowdown ? showdownResult.activePlayers.slice() : [],
 		mainPotWinners: showdownResult.mainPotWinners.slice(),
 		winningPlayers: showdownResult.winningPlayers.slice(),
 	};
@@ -716,12 +714,11 @@ export function recordPlayerActionStats(gameState, player, actionName, actionMet
 			handContext.streetAggressiveActionCounts = createHandContextState().streetAggressiveActionCounts;
 		}
 		if (actionName === "check") {
-			handContext.streetCheckCounts[phase] =
-				(handContext.streetCheckCounts[phase] ?? 0) + 1;
+			handContext.streetCheckCounts[phase] = (handContext.streetCheckCounts[phase] ?? 0) + 1;
 		}
 		if (isAggressiveAction) {
-			handContext.streetAggressiveActionCounts[phase] =
-				(handContext.streetAggressiveActionCounts[phase] ?? 0) + 1;
+			handContext.streetAggressiveActionCounts[phase] = (handContext.streetAggressiveActionCounts[phase] ?? 0) +
+				1;
 		}
 	}
 	if (gameState.currentPhaseIndex === 0 && isVoluntaryAction) {
@@ -913,9 +910,7 @@ export function getBotRevealDecision(player, communityCards, randomValue = Math.
 		const rank = cardCode[0];
 		rankCounts.set(rank, (rankCounts.get(rank) || 0) + 1);
 	});
-	const madeRankEntry = Array.from(rankCounts.entries()).find(([, count]) =>
-		count === repeatedCount
-	);
+	const madeRankEntry = Array.from(rankCounts.entries()).find(([, count]) => count === repeatedCount);
 	if (!madeRankEntry) {
 		return null;
 	}

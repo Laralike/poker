@@ -1,4 +1,4 @@
-﻿/* ==================================================================================================
+/* ==================================================================================================
 MODULE BOUNDARY: Bot Decision Engine
 ================================================================================================== */
 
@@ -480,20 +480,12 @@ function buildLegacyLogSpotContext({
 
 function getLegacyPreflopLogScores(cardA, cardB, context = {}) {
 	const profile = buildPreflopHandProfile(cardA, cardB);
-	const flatScore = context.preflop
-		? getContextualPreflopFlatScore(profile, context)
-		: profile.flatScore;
-	const defendScore = context.preflop
-		? getContextualPreflopDefendScore(profile, context, flatScore)
-		: flatScore;
-	const openRaiseScore = context.preflop
-		? getContextualPreflopOpenRaiseScore(profile, context)
-		: profile.chenScore;
-	const openLimpScore = context.preflop
-		? getContextualPreflopOpenLimpScore(profile, context)
-		: clampPreflopScore(
-			(profile.chenScore + profile.playability) / 2,
-		);
+	const flatScore = context.preflop ? getContextualPreflopFlatScore(profile, context) : profile.flatScore;
+	const defendScore = context.preflop ? getContextualPreflopDefendScore(profile, context, flatScore) : flatScore;
+	const openRaiseScore = context.preflop ? getContextualPreflopOpenRaiseScore(profile, context) : profile.chenScore;
+	const openLimpScore = context.preflop ? getContextualPreflopOpenLimpScore(profile, context) : clampPreflopScore(
+		(profile.chenScore + profile.playability) / 2,
+	);
 
 	return {
 		handFamily: profile.handFamily,
@@ -616,10 +608,7 @@ function buildStreetLineRead(currentPhaseIndex, handContext) {
 		return count;
 	}, 0);
 	const priorAggressiveStreetCount = priorStreets.reduce(
-		(count, street) =>
-			getStreetLineCount(streetAggressiveActionCounts, street) > 0
-				? count + 1
-				: count,
+		(count, street) => getStreetLineCount(streetAggressiveActionCounts, street) > 0 ? count + 1 : count,
 		0,
 	);
 
@@ -632,9 +621,7 @@ function buildStreetLineRead(currentPhaseIndex, handContext) {
 		doubleCheckedThrough: currentPhaseIndex === 3 &&
 			flopCheckedThrough &&
 			turnCheckedThrough,
-		streetCheckCount: currentStreet
-			? getStreetLineCount(streetCheckCounts, currentStreet)
-			: 0,
+		streetCheckCount: currentStreet ? getStreetLineCount(streetCheckCounts, currentStreet) : 0,
 		streetAggressiveActionCount: currentStreet
 			? getStreetLineCount(streetAggressiveActionCounts, currentStreet)
 			: 0,
@@ -729,12 +716,8 @@ function analyzeHandContext(hole, board) {
 			pairClass = "weak-pair";
 		}
 	} else if (hand.name === "Two Pair" && pairedBoard) {
-		const singletonBoardRanks = uniqueBoardRanks.filter((rank) =>
-			boardRankCounts[rank] === 1
-		);
-		const matchedSingletonRanks = holeRanks.filter((rank) =>
-			boardRankCounts[rank] === 1
-		);
+		const singletonBoardRanks = uniqueBoardRanks.filter((rank) => boardRankCounts[rank] === 1);
+		const matchedSingletonRanks = holeRanks.filter((rank) => boardRankCounts[rank] === 1);
 		const hasPrivatePair = pocketPair || matchedSingletonRanks.length > 0;
 		const pairedRankCount = Object.values(boardRankCounts).filter((count) => count >= 2).length;
 		if (hasPrivatePair) {
@@ -746,9 +729,7 @@ function analyzeHandContext(hole, board) {
 					matchedSingletonRanks.length >= 2 ||
 					matchedSingletonRanks[0] === highestSingletonRank
 				);
-			pairedBoardPrivatePairTier = strongPocketPair || strongBoardPair
-				? "strong"
-				: "weak";
+			pairedBoardPrivatePairTier = strongPocketPair || strongBoardPair ? "strong" : "weak";
 		}
 		pairClass = hasPrivatePair ? "paired-board-private-pair" : "board-pair-only";
 	}
@@ -1070,9 +1051,7 @@ function buildPreflopHandProfile(cardA, cardB) {
 	return {
 		chenScore,
 		handFamily,
-		legacyHandFamily: dominatedOffsuitBroadway || premiumOffsuitBroadway
-			? "offsuitBroadway"
-			: handFamily,
+		legacyHandFamily: dominatedOffsuitBroadway || premiumOffsuitBroadway ? "offsuitBroadway" : handFamily,
 		suited,
 		pair,
 		gap,
@@ -1624,9 +1603,7 @@ function getContextualPreflopFlatScore(
 				flatScore -= 0.25;
 			}
 			if (context.facingAggression) {
-				flatScore -= context.headsUp && blindDefense && goodPrice
-					? 0.25
-					: 0.40;
+				flatScore -= context.headsUp && blindDefense && goodPrice ? 0.25 : 0.40;
 			}
 		}
 	} else {
@@ -2217,9 +2194,7 @@ function getOpenLimpEligibility({
 		const eligible = rangePolicy.protectedActionSpot && preflopScores.openLimpScore >= requiredScore;
 		return {
 			eligible,
-			reason: eligible
-				? "protected_junk_realization_score"
-				: "offsuit_junk_context",
+			reason: eligible ? "protected_junk_realization_score" : "offsuit_junk_context",
 			requiredMargin,
 			rangeFit,
 		};
@@ -2424,14 +2399,10 @@ function getCheckRaiseStreetName(streetIndex) {
 
 function getCheckRaiseTextureBlockReason(rawHandRank, textureRisk) {
 	if (rawHandRank >= 5) {
-		return textureRisk <= CHECK_RAISE_STRAIGHT_PLUS_MAX_TEXTURE
-			? null
-			: "texture_straight_plus";
+		return textureRisk <= CHECK_RAISE_STRAIGHT_PLUS_MAX_TEXTURE ? null : "texture_straight_plus";
 	}
 	if (rawHandRank >= 3) {
-		return textureRisk <= CHECK_RAISE_TWO_PAIR_TRIPS_MAX_TEXTURE
-			? null
-			: "texture_two_pair_trips";
+		return textureRisk <= CHECK_RAISE_TWO_PAIR_TRIPS_MAX_TEXTURE ? null : "texture_two_pair_trips";
 	}
 	return "below_two_pair";
 }
@@ -2668,9 +2639,7 @@ function getFlopAirDefenderCallRelief({
 	const overcardBackdoorHeadsUp = overcards >= 1 && backdoorCount >= 1 &&
 		goodPrice && spotContext.headsUp;
 
-	return aceHighClose || twoOvercardsClose || overcardBackdoorHeadsUp
-		? FLOP_AIR_DEFENDER_CALL_RELIEF
-		: 0;
+	return aceHighClose || twoOvercardsClose || overcardBackdoorHeadsUp ? FLOP_AIR_DEFENDER_CALL_RELIEF : 0;
 }
 
 function getPostflopPriceQualityShift({
@@ -2732,9 +2701,7 @@ function getPostflopPriceQualityShift({
 		expensiveBetFactor = 1.00;
 	}
 
-	return baseShift < 0
-		? baseShift * cheapBetFactor
-		: baseShift * expensiveBetFactor;
+	return baseShift < 0 ? baseShift * cheapBetFactor : baseShift * expensiveBetFactor;
 }
 
 function getFlopEquityCallRelief({
@@ -2753,13 +2720,7 @@ function getFlopEquityCallRelief({
 	potOdds,
 	marginToCall,
 }) {
-	const priceFactor = potOdds <= 0.25
-		? 1
-		: potOdds <= 0.35
-		? 0.65
-		: potOdds <= 0.45
-		? 0.35
-		: 0;
+	const priceFactor = potOdds <= 0.25 ? 1 : potOdds <= 0.35 ? 0.65 : potOdds <= 0.45 ? 0.35 : 0;
 	if (priceFactor === 0) {
 		return 0;
 	}
@@ -3028,7 +2989,8 @@ function getNoBetRaiseBlockReason({
 			(
 				((topPair || overPair) && edge >= 0.85) ||
 				(edge >= 0.65 &&
-					(spotContext.headsUp || previousStreetCheckedThrough)));
+					(spotContext.headsUp || previousStreetCheckedThrough))
+			);
 		return canRaiseRiver ? null : "river";
 	}
 
@@ -3060,9 +3022,9 @@ function getNoBetRaiseBlockReason({
 			return canRaisePairedBoard ? null : "paired_board_context";
 		}
 		const hasGoodContext = (spotContext.headsUp &&
-				((isLastToAct && edge >= 0.35) ||
-					(previousStreetCheckedThrough && edge >= 0.45) ||
-					edge >= 0.65)) ||
+			((isLastToAct && edge >= 0.35) ||
+				(previousStreetCheckedThrough && edge >= 0.45) ||
+				edge >= 0.65)) ||
 			(isLastToAct && (previousStreetCheckedThrough || edge >= 0.65));
 		return hasGoodContext ? null : "light_structural_context";
 	}
@@ -3257,9 +3219,7 @@ export function chooseBotAction(player, gameState) {
 	const preflopSeatClass = preflop ? getPreflopSeatClass(players, player) : null;
 	const preflopActionOrderSeatClass = preflop ? getPreflopActionOrderSeatClass(players, player) : null;
 	const preflopAggressor = preflop ? getLastPreflopAggressor(players, handContext) : null;
-	const preflopAggressorSeatClass = preflopAggressor
-		? getPreflopSeatClass(players, preflopAggressor)
-		: null;
+	const preflopAggressorSeatClass = preflopAggressor ? getPreflopSeatClass(players, preflopAggressor) : null;
 	const preflopScores = getLegacyPreflopLogScores(
 		player.holeCards[0],
 		player.holeCards[1],
@@ -3528,9 +3488,7 @@ export function chooseBotAction(player, gameState) {
 	const callBarrierBase = preflop
 		? Math.min(1, Math.max(0, potOdds + callTightAdj))
 		: Math.min(1, Math.max(0, POSTFLOP_CALL_BARRIER + callTightAdj));
-	let callBarrier = preflop
-		? Math.min(1, callBarrierBase + commitmentPenalty)
-		: callBarrierBase;
+	let callBarrier = preflop ? Math.min(1, callBarrierBase + commitmentPenalty) : callBarrierBase;
 	let marginalCallPenalty = 0;
 	if (!preflop) {
 		let callBarrierAdj = 0;
@@ -5522,9 +5480,7 @@ export function chooseBotAction(player, gameState) {
 				`PA:${strengthRatio.toFixed(2)} PS:${strengthRatio.toFixed(2)} ` +
 				`PAS:${privateAwareStrength.toFixed(2)} EBo:${edgeBoost.toFixed(4)} ` +
 				`M:${mRatio.toFixed(2)} Z:${mZone} | ` +
-				`PO:${potOdds.toFixed(2)} CB:${eliminationBarrier.toFixed(2)} MDFa:${
-					mdfRequiredFoldRate.toFixed(2)
-				} ` +
+				`PO:${potOdds.toFixed(2)} CB:${eliminationBarrier.toFixed(2)} MDFa:${mdfRequiredFoldRate.toFixed(2)} ` +
 				`SR:${stackRatio.toFixed(2)} SRaw:${rawStackRatio.toFixed(2)} | ` +
 				`CP:${commitmentPressure.toFixed(2)} CPen:${commitmentPenalty.toFixed(2)} | ` +
 				`ER:${eliminationRisk.toFixed(2)} EP:${eliminationPenalty.toFixed(2)} | ` +

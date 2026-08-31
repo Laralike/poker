@@ -296,9 +296,7 @@ export function showWinnerReaction(target, emoji = "", visibleUntil = 0) {
 		return;
 	}
 
-	const remainingDuration = Number.isFinite(visibleUntil)
-		? Math.max(0, visibleUntil - Date.now())
-		: 0;
+	const remainingDuration = Number.isFinite(visibleUntil) ? Math.max(0, visibleUntil - Date.now()) : 0;
 	if (remainingDuration === 0) {
 		clearWinnerReaction(target);
 		return;
@@ -436,9 +434,7 @@ export function renderSeatRotation(target, rotationDegrees = 0) {
 		return;
 	}
 
-	const rotation = Number.isFinite(rotationDegrees)
-		? ((rotationDegrees % 360) + 360) % 360
-		: 0;
+	const rotation = Number.isFinite(rotationDegrees) ? ((rotationDegrees % 360) + 360) % 360 : 0;
 	seatEl.dataset.rotation = `${rotation}`;
 }
 
@@ -634,9 +630,7 @@ export function renderProjectedSeat(
 ) {
 	const isOwnSeat = publicSeat.seatIndex === ownSeatIndex && ownSeatView;
 	const holeCards = isOwnSeat ? ownSeatView.holeCards : publicSeat.publicHoleCards;
-	const handStrengthLabel = isOwnSeat
-		? ownSeatView.handStrengthLabel
-		: publicSeat.handStrengthLabel;
+	const handStrengthLabel = isOwnSeat ? ownSeatView.handStrengthLabel : publicSeat.handStrengthLabel;
 	const showWinProbability = isOwnSeat
 		? ownSeatView.showWinProbability === true
 		: publicSeat.showWinProbability === true;
@@ -657,9 +651,7 @@ export function renderProjectedSeat(
 	renderSeatPill(seatRef.handStrengthEl, handStrengthLabel);
 	renderSeatPill(
 		seatRef.winProbabilityEl,
-		showWinProbability && typeof winProbability === "number"
-			? `${Math.round(winProbability)}%`
-			: "",
+		showWinProbability && typeof winProbability === "number" ? `${Math.round(winProbability)}%` : "",
 		showWinProbability,
 	);
 }

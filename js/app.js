@@ -107,6 +107,10 @@ const humansIncrementButton = document.getElementById("humans-increment");
 const botsDecrementButton = document.getElementById("bots-decrement");
 const botsIncrementButton = document.getElementById("bots-increment");
 const setupExplainerEl = document.getElementById("setup-explainer");
+const setupNamesEl = document.getElementById("setup-names");
+const waitingRoomEl = document.getElementById("waiting-room");
+const waitingRoomMessageEl = document.getElementById("waiting-room-message");
+const waitingRoomDealButton = document.getElementById("waiting-room-deal-button");
 const notification = document.querySelector("#notification");
 const foldButton = document.querySelector("#fold-button");
 const actionButton = document.querySelector("#action-button");
@@ -1966,7 +1970,9 @@ async function fetchPendingRemoteAction(turnToken) {
 		const payload = await res.json();
 		setPresentRemoteSeats(payload?.presentSeats);
 		presenceRefreshedAt = Date.now();
-		return payload?.action ?? null;
+		// An action is present only when it carries a turn token. Everything else in the reply is
+		// presence, and an empty reply means there is nothing waiting.
+		return payload?.turnToken ? payload : null;
 	} catch (error) {
 		logFlow("remote action poll failed", error);
 		return null;
@@ -2057,6 +2063,81 @@ function queueStateSync(delay = STATE_SYNC_DELAY) {
 		sendTableState();
 	}, nextDelay);
 }
+
+/* --------------------------------------------------------------------------------------------------
+Waiting for players
+
+The join code only exists once a game has started, so pressing Start used to deal immediately and
+leave the host trying to get everyone in while cards were already out. For a game with two or more
+people the table now opens, publishes its code, and waits until everyone is at their own device --
+or until whoever set it up says go anyway.
+---------------------------------------------------------------------------------------------------*/
+
+const WAITING_ROOM_POLL_INTERVAL = 2000;
+let waitingForPlayers = false;
+let waitingRoomTimer = null;
+
+function shouldWaitForPlayersToJoin() {
+	return hasStateSyncEnabled() && getHumanPlayers().length >= 2;
+}
+
+function renderWaitingRoom() {
+	if (!waitingRoomEl || !waitingRoomMessageEl) {
+		return;
+	}
+
+	if (!waitingForPlayers) {
+		waitingRoomEl.classList.add("hidden");
+		return;
+	}
+
+	const humans = getHumanPlayers();
+	const joined = humans.filter((player) => presentRemoteSeats.has(player.seatIndex));
+	const missing = humans.filter((player) => !presentRemoteSeats.has(player.seatIndex));
+
+	waitingRoomMessageEl.textContent = missing.length === 0
+		? "Everyone is in. Dealing…"
+		: `Waiting for ${missing.map((player) => player.name).join(", ")}. ` +
+			(joined.length > 0
+				? `${joined.map((player) => player.name).join(", ")} ready.`
+				: "Nobody has joined yet — use the code above.");
+	waitingRoomEl.classList.remove("hidden");
+}
+
+function stopWaitingForPlayers() {
+	waitingForPlayers = false;
+	if (waitingRoomTimer !== null) {
+		clearInterval(waitingRoomTimer);
+		waitingRoomTimer = null;
+	}
+	renderWaitingRoom();
+}
+
+function dealNow() {
+	if (!waitingForPlayers) {
+		return;
+	}
+	stopWaitingForPlayers();
+	preFlop();
+}
+
+function beginWaitingForPlayers() {
+	waitingForPlayers = true;
+	renderWaitingRoom();
+
+	// Each state push comes back with who is on a device, so pushing is also how we find out.
+	queueStateSync(0);
+	waitingRoomTimer = setInterval(() => {
+		queueStateSync(0);
+		renderWaitingRoom();
+		const humans = getHumanPlayers();
+		if (humans.length > 0 && humans.every((player) => presentRemoteSeats.has(player.seatIndex))) {
+			dealNow();
+		}
+	}, WAITING_ROOM_POLL_INTERVAL);
+}
+
+waitingRoomDealButton?.addEventListener("click", dealNow);
 
 // Shown on the shared screen in place of a seat's action buttons while that seat is being played
 // from its own device. Carries an escape hatch so the table is never stuck if the device gives up.
@@ -2416,7 +2497,11 @@ function startGame() {
 			initStateSyncForGame();
 			renderJoinBanner();
 
-			preFlop();
+			if (shouldWaitForPlayersToJoin()) {
+				beginWaitingForPlayers();
+			} else {
+				preFlop();
+			}
 		} else {
 			hadHumansAtStart = false;
 			currentGameSaveEligible = false;
@@ -3557,6 +3642,92 @@ function getServerCheckText() {
 	}
 }
 
+/* --------------------------------------------------------------------------------------------------
+Names
+
+Names live on the seats, where they always have -- typing on a seat still works. But once the People
+and Bots counters started filling those seats in for you, "Player 1" stopped looking like something
+you were meant to change, and there was nothing to say where to put real names. So the panel asks.
+---------------------------------------------------------------------------------------------------*/
+
+let renderedNameSeats = null;
+
+function getUnusedDefaultName(takenNames) {
+	return DEFAULT_PLAYER_NAMES.find((name) => !takenNames.has(name)) ?? "Player";
+}
+
+function handleSetupNameInput(event) {
+	const seatRef = seatRefs[Number(event.currentTarget.dataset.seat)];
+	if (seatRef) {
+		seatRef.nameEl.textContent = event.currentTarget.value;
+	}
+}
+
+function handleSetupNameBlur(event) {
+	const input = event.currentTarget;
+	const seatRef = seatRefs[Number(input.dataset.seat)];
+	if (!seatRef) {
+		return;
+	}
+
+	// An empty name is how a seat becomes a bot, which is not what clearing a name box means. The
+	// People and Bots counters are for that, so put a name back rather than quietly losing a player.
+	if (input.value.trim() === "") {
+		const taken = new Set(readTableSetup().humanSeats.map(getSeatName));
+		const fallback = getUnusedDefaultName(taken);
+		seatRef.nameEl.textContent = fallback;
+		input.value = fallback;
+	}
+	refreshTableSetup();
+}
+
+function renderSetupNames(humanSeats) {
+	if (!setupNamesEl) {
+		return;
+	}
+
+	const seatKey = humanSeats.map((seatRef) => seatRefs.indexOf(seatRef)).join(",");
+	if (seatKey === renderedNameSeats) {
+		// Same seats: just keep the values in step, leaving alone whichever box is being typed in.
+		for (const input of setupNamesEl.querySelectorAll("input")) {
+			const seatRef = seatRefs[Number(input.dataset.seat)];
+			if (seatRef && input !== document.activeElement) {
+				input.value = getSeatName(seatRef);
+			}
+		}
+		return;
+	}
+
+	// Rebuilding would move focus out of a box mid-word.
+	if (setupNamesEl.contains(document.activeElement)) {
+		return;
+	}
+
+	renderedNameSeats = seatKey;
+	setupNamesEl.replaceChildren();
+	humanSeats.forEach((seatRef, index) => {
+		const row = document.createElement("label");
+		row.className = "setup-name-row";
+
+		const label = document.createElement("span");
+		label.className = "setup-name-label";
+		label.textContent = `Person ${index + 1}`;
+
+		const input = document.createElement("input");
+		input.type = "text";
+		input.className = "setup-name-input";
+		input.maxLength = 20;
+		input.autocomplete = "off";
+		input.dataset.seat = `${seatRefs.indexOf(seatRef)}`;
+		input.value = getSeatName(seatRef);
+		input.addEventListener("input", handleSetupNameInput);
+		input.addEventListener("blur", handleSetupNameBlur);
+
+		row.append(label, input);
+		setupNamesEl.appendChild(row);
+	});
+}
+
 function refreshTableSetup() {
 	if (!tableSetupEl || gameState.gameStarted) {
 		return;
@@ -3565,6 +3736,7 @@ function refreshTableSetup() {
 	const setup = readTableSetup();
 	humansCountEl.textContent = `${setup.humans}`;
 	botsCountEl.textContent = `${setup.bots}`;
+	renderSetupNames(setup.humanSeats);
 	setupExplainerEl.textContent = getSetupExplainerText(setup);
 	const serverProblem = serverCheck !== null && serverCheck.state !== "ok" &&
 		serverCheck.state !== "checking";
@@ -3813,7 +3985,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v3";
+const SERVICE_WORKER_VERSION = "2026-08-31-v4";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

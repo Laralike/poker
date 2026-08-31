@@ -88,8 +88,7 @@ async function unregisterServiceWorkers(projectScope, projectSlug, swCachePrefix
 	if (registrations.length) {
 		// Only unregister SWs whose scope belongs to this project.
 		const projectRegistrations = registrations.filter(
-			(registration) =>
-				registration.scope === projectScope || registration.scope.startsWith(projectScope),
+			(registration) => registration.scope === projectScope || registration.scope.startsWith(projectScope),
 		);
 
 		if (projectRegistrations.length) {

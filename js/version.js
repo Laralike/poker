@@ -10,9 +10,21 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.9.0";
+export const APP_VERSION = "1.10.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.10.0",
+		date: "2026-08-31",
+		title: "Names, and waiting for everyone",
+		notes: [
+			"Type each person's name straight into the setup panel, instead of having to work out that the labels on the seats were editable.",
+			"Starting a game for two or more people now opens the table and waits until everyone has joined on their own device before dealing, showing who is still to arrive. There is a Deal now button if you would rather not wait.",
+			"Fixed an action taken on a joined device being lost when the shared table was still running an older cached copy of the game, which left the buttons greyed out for the rest of the hand.",
+			"If an action is not acknowledged, the buttons come back so it can be tried again instead of staying dead.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.9.0",
 		date: "2026-08-31",
@@ -31,7 +43,7 @@ export const VERSION_LOG = [
 			"The shared table now shows a join address and a short table code, so players can join by typing rather than needing a phone that reads QR codes.",
 			"A new join page takes the code, lists the seats, and lets you pick your own.",
 			"You can choose the full table view, which shows the whole game alongside your own cards and suits a laptop, or the compact cards-only view for a phone.",
-			"Fixed a player view that could stay stuck on \"Loading table\" when it was opened in a background tab.",
+			'Fixed a player view that could stay stuck on "Loading table" when it was opened in a background tab.',
 		],
 		estimated: false,
 	},

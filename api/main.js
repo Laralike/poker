@@ -358,7 +358,11 @@ function handleGetAction(url, origin) {
 
 	const record = consumePendingAction(tableId, turnToken);
 	const presentSeats = getLiveSeatIndexes(getSeatPresence(tableId));
-	return jsonResponse({ action: record, presentSeats }, origin);
+	// The action's own fields stay at the top level, where they have always been, and presence is
+	// added beside them. Wrapping them instead would silently break any page still running an older
+	// copy of the script -- it would read no action, and the player's move would vanish with their
+	// buttons stuck greyed out. Caches make that a certainty, not a risk.
+	return jsonResponse({ ...(record ?? {}), presentSeats }, origin);
 }
 
 // Joining from a laptop means typing a code, which means something has to answer "what seats does

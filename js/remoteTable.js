@@ -125,7 +125,7 @@ const actionControls = createSeatActionControls({
 	sliderOutput,
 	decrementButton: amountDecrementButton,
 	incrementButton: amountIncrementButton,
-	onActionError: () => setNotification("Action request failed."),
+	onActionError: () => setNotification("That did not reach the table. Try again."),
 	onNewTurn: () => playTurnChime(),
 });
 

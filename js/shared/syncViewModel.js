@@ -9,12 +9,7 @@ MODULE BOUNDARY: Shared Sync View Model
 // backend code.
 // DO NOT PUT HERE: Fetching, rendering, polling, or poker-flow decisions.
 
-import {
-	areHoleCardsFaceUp,
-	getCurrentPhase,
-	getPlayerHandStrengthLabel,
-	isAllInRunout,
-} from "../gameEngine.js";
+import { areHoleCardsFaceUp, getCurrentPhase, getPlayerHandStrengthLabel, isAllInRunout } from "../gameEngine.js";
 
 export const SYNC_VIEW_SCHEMA_VERSION = 7;
 
@@ -194,9 +189,7 @@ export function buildSeatView(player, communityCards, gameState) {
 }
 
 export function buildSyncView(gameState, notifications = [], now = Date.now()) {
-	const communityCards = Array.isArray(gameState?.communityCards)
-		? gameState.communityCards.slice()
-		: [];
+	const communityCards = Array.isArray(gameState?.communityCards) ? gameState.communityCards.slice() : [];
 	const players = Array.isArray(gameState?.players) ? gameState.players : [];
 
 	return {
@@ -206,9 +199,7 @@ export function buildSyncView(gameState, notifications = [], now = Date.now()) {
 			activeSeatIndex: gameState.activeSeatIndex,
 			communityCards,
 			notifications: Array.isArray(notifications) ? notifications.slice() : [],
-			playersPublic: players.map((player) =>
-				buildPublicPlayerView(player, communityCards, gameState, now)
-			),
+			playersPublic: players.map((player) => buildPublicPlayerView(player, communityCards, gameState, now)),
 			chipTransfer: buildPublicChipTransferState(gameState),
 			pendingAction: gameState.pendingAction ? { ...gameState.pendingAction } : null,
 		},

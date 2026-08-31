@@ -710,6 +710,7 @@ export function createSeatActionControls({
 	seatIndex,
 	actionEndpoint,
 	actionStep = 10,
+	submitRecoveryDelay = 8000,
 	visibleElements = [],
 	foldButton,
 	actionButton,
@@ -724,6 +725,7 @@ export function createSeatActionControls({
 	// They reuse the same control shell, but do not own a local turn lifecycle.
 	let currentPendingAction = null;
 	let isSubmittingAction = false;
+	let submitRecoveryTimer = null;
 	const turnActionUi = createTurnActionUi({
 		visibleElements,
 		foldButton,
@@ -735,6 +737,34 @@ export function createSeatActionControls({
 		actionStep,
 	});
 
+	function clearSubmitRecoveryTimer() {
+		if (submitRecoveryTimer === null) {
+			return;
+		}
+		clearTimeout(submitRecoveryTimer);
+		submitRecoveryTimer = null;
+	}
+
+	// The controls stay disabled after a successful submit, because the turn is over as far as this
+	// device is concerned and the next state update takes them away. But if the table never acts on
+	// it -- a dropped request, or a table running an older script that could not read the reply --
+	// the player is left staring at dead buttons for the rest of the hand with no way back. So give
+	// up waiting after a while and let them try again.
+	function scheduleSubmitRecovery() {
+		clearSubmitRecoveryTimer();
+		submitRecoveryTimer = setTimeout(() => {
+			submitRecoveryTimer = null;
+			if (!isSubmittingAction || !currentPendingAction) {
+				return;
+			}
+			isSubmittingAction = false;
+			turnActionUi.setEnabled(true);
+			if (typeof onActionError === "function") {
+				onActionError(new Error("action not acknowledged"));
+			}
+		}, submitRecoveryDelay);
+	}
+
 	async function submitActionRequest(actionRequest) {
 		if (!currentPendingAction || !tableId || seatIndex === null || isSubmittingAction) {
 			return;
@@ -742,6 +772,7 @@ export function createSeatActionControls({
 
 		isSubmittingAction = true;
 		turnActionUi.setEnabled(false);
+		scheduleSubmitRecovery();
 
 		try {
 			const res = await fetch(actionEndpoint, {
@@ -760,6 +791,7 @@ export function createSeatActionControls({
 			}
 		} catch (error) {
 			console.warn("action request failed", error);
+			clearSubmitRecoveryTimer();
 			isSubmittingAction = false;
 			turnActionUi.setEnabled(true);
 			if (typeof onActionError === "function") {
@@ -773,6 +805,7 @@ export function createSeatActionControls({
 	}
 
 	function hide() {
+		clearSubmitRecoveryTimer();
 		currentPendingAction = null;
 		isSubmittingAction = false;
 		turnActionUi.hide();
@@ -787,6 +820,7 @@ export function createSeatActionControls({
 		const isNewTurn = currentPendingAction?.turnToken !== pendingAction.turnToken;
 		currentPendingAction = pendingAction;
 		if (isNewTurn) {
+			clearSubmitRecoveryTimer();
 			isSubmittingAction = false;
 			onNewTurn?.();
 		}
