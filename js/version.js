@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.12.0";
+export const APP_VERSION = "1.13.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.13.0",
+		date: "2026-08-31",
+		title: "Draw for seats",
+		notes: [
+			"Seats are now drawn at random when a game starts, the way a real table does it, instead of seating people in the order their names were typed.",
+			"Two people at a six-handed table were previously always neighbours for the whole session, because the dealer button moves the running order round without changing who sits beside whom. Position is most of what makes hold'em interesting, so it is worth varying.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.12.0",
 		date: "2026-08-31",

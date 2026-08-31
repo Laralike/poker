@@ -2584,7 +2584,39 @@ function startGame() {
 	}
 }
 
+/* --------------------------------------------------------------------------------------------------
+Drawing for seats
+
+People were seated in the order they were typed in, so they always ended up next to each other. The
+dealer button does move every hand, but it moves by rotating the running order, which keeps everyone
+in the same order relative to each other -- so two people at a six-handed table stayed neighbours for
+the whole session, one of them always acting immediately after the other. Position is most of what
+makes hold'em interesting, and that arrangement quietly removes the part of it worth learning.
+
+Seats are therefore drawn at random each game, the way a real table does it.
+---------------------------------------------------------------------------------------------------*/
+
+function drawForSeats() {
+	const visibleSeats = seatRefs.filter((seatRef) => !seatRef.seatEl.classList.contains("hidden"));
+	const names = visibleSeats
+		.map((seatRef) => seatRef.nameEl.textContent.trim())
+		.filter((name) => name !== "");
+
+	// Fisher-Yates over the seats, then deal the names into them.
+	const shuffledSeats = visibleSeats.slice();
+	for (let i = shuffledSeats.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shuffledSeats[i], shuffledSeats[j]] = [shuffledSeats[j], shuffledSeats[i]];
+	}
+
+	shuffledSeats.forEach((seatRef, index) => {
+		// Anything past the last person is left blank, which is what makes a seat a bot.
+		seatRef.nameEl.textContent = index < names.length ? names[index] : "";
+	});
+}
+
 function createPlayers() {
+	drawForSeats();
 	gameState.players = [];
 	gameState.allPlayers = [];
 	let botIndex = 1;
@@ -4048,7 +4080,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v7";
+const SERVICE_WORKER_VERSION = "2026-08-31-v8";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({
