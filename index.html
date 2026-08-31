@@ -295,25 +295,27 @@
 				</section>
 				<section class="actions">
 					<div id="table-setup" class="table-setup">
-						<div class="setup-counts">
-							<div class="setup-row">
-								<span class="setup-label">People</span>
-								<button type="button" id="humans-decrement" class="setup-step"
-									aria-label="One fewer person">-</button>
-								<span id="humans-count" class="setup-count">1</span>
-								<button type="button" id="humans-increment" class="setup-step"
-									aria-label="One more person">+</button>
+						<div class="setup-row-group">
+							<div class="setup-counts">
+								<div class="setup-row">
+									<span class="setup-label">People</span>
+									<button type="button" id="humans-decrement" class="setup-step"
+										aria-label="One fewer person">-</button>
+									<span id="humans-count" class="setup-count">1</span>
+									<button type="button" id="humans-increment" class="setup-step"
+										aria-label="One more person">+</button>
+								</div>
+								<div class="setup-row">
+									<span class="setup-label">Bots</span>
+									<button type="button" id="bots-decrement" class="setup-step"
+										aria-label="One fewer bot">-</button>
+									<span id="bots-count" class="setup-count">5</span>
+									<button type="button" id="bots-increment" class="setup-step"
+										aria-label="One more bot">+</button>
+								</div>
 							</div>
-							<div class="setup-row">
-								<span class="setup-label">Bots</span>
-								<button type="button" id="bots-decrement" class="setup-step"
-									aria-label="One fewer bot">-</button>
-								<span id="bots-count" class="setup-count">5</span>
-								<button type="button" id="bots-increment" class="setup-step"
-									aria-label="One more bot">+</button>
-							</div>
+							<div id="setup-names" class="setup-names"></div>
 						</div>
-						<div id="setup-names" class="setup-names"></div>
 						<p id="setup-explainer" class="setup-explainer"></p>
 					</div>
 					<div id="waiting-room" class="waiting-room hidden">

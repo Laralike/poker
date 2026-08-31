@@ -312,11 +312,11 @@ main {
 	grid-template-columns: repeat(3, 1fr);
 	grid-template-rows: 1fr auto 1fr;
 	grid-column-gap: 0px;
-	grid-row-gap: 2vh;
+	grid-row-gap: clamp(0.15rem, 0.8vh, 0.9rem);
 }
 
 main .seat {
-	width: 22vmin;
+	width: min(22vmin, 16vh);
 	/* Three columns of a flat 120px minimum overflowed anything narrower than ~370px, which forced
 	   a horizontal scroll and pushed the controls out of reach. */
 	min-width: min(120px, 30vw);
@@ -482,7 +482,7 @@ TABLE-MIDDLE
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 3vh;
+	gap: clamp(0.3rem, 1.4vh, 1.2rem);
 }
 
 .infos {
@@ -493,7 +493,7 @@ TABLE-MIDDLE
 }
 
 .infos div {
-	padding: 5px 20px;
+	padding: clamp(2px, 0.6vh, 5px) 20px;
 	background-color: var(--blue);
 	box-shadow: inset var(--shadow-pressed);
 	color: var(--yellow);
@@ -564,12 +564,17 @@ TABLE-MIDDLE
 	gap: 1.5vmin;
 }
 
+/* Every size on this board used to be in vmin, which on a wide laptop means "a fraction of the
+   height" only by accident, and stops tracking it once the window is wider than it is tall. The
+   table then needed scrolling to see the top and bottom rows of cards. Capping each size by vh as
+   well keeps the whole thing on one screen. */
+
 #community-cards div {
 	flex: 0 0 auto;
 }
 
 .cardslot {
-	width: 16vmin;
+	width: min(16vmin, 9.2vh);
 	height: auto;
 	aspect-ratio: 5/7;
 	border-radius: 1vmin;
@@ -592,7 +597,7 @@ TABLE-MIDDLE
 	justify-content: center;
 	align-items: center;
 	width: 100%;
-	gap: 1rem 0;
+	gap: clamp(0.35rem, 1.2vh, 1rem) 0;
 }
 
 .actions .sound-toggle {
@@ -759,9 +764,19 @@ JOIN PAGE
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 0.6rem;
+	gap: clamp(0.2rem, 0.9vh, 0.6rem);
 	width: 100%;
-	margin-bottom: 0.5rem;
+	margin-bottom: clamp(0.1rem, 0.6vh, 0.5rem);
+}
+
+/* Counters and name boxes share a row where there is width for it, which saves a whole line of
+   height on a short laptop, and stack on a narrow screen. */
+.setup-row-group {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: clamp(0.2rem, 0.9vh, 0.6rem) 1.75rem;
 }
 
 .setup-counts {
@@ -805,11 +820,11 @@ JOIN PAGE
 
 .setup-explainer {
 	white-space: pre-line;
-	max-width: 46ch;
+	max-width: min(78ch, 94vw);
 	margin: 0;
 	text-align: center;
-	font-size: 0.9rem;
-	line-height: 1.35;
+	font-size: clamp(0.78rem, 1.6vh, 0.9rem);
+	line-height: 1.3;
 	color: var(--blue-lightest);
 }
 
@@ -1210,7 +1225,8 @@ footer {
 	width: 100%;
 	font-size: 0.9rem;
 	color: var(--blue-lightest);
-	padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px));
+	padding: clamp(2px, 0.8vh, 10px) 20px
+		calc(clamp(2px, 0.8vh, 10px) + env(safe-area-inset-bottom, 0px));
 }
 
 #credit {
@@ -1345,7 +1361,7 @@ PLAYER
 }
 
 .hole-cards img {
-	width: 10vmin;
+	width: min(10vmin, 6.9vh);
 	margin: 0.5vmin;
 }
 
@@ -1357,13 +1373,13 @@ PLAYER
 
 .hole-cards img:nth-of-type(1) {
 	transform: rotate(-2deg);
-	min-width: 70px;
+	min-width: min(70px, 7.2vh);
 }
 
 .hole-cards img:nth-of-type(2) {
 	transform: rotate(3deg);
 	position: absolute;
-	min-width: 70px;
+	min-width: min(70px, 7.2vh);
 	right: 0;
 }
 
@@ -1445,13 +1461,13 @@ main .seat.folded .hole-cards img:nth-of-type(2) {
 .chips .stack-visual {
 	--chip-step: max(0.3vmin, 2.5px);
 	position: relative;
-	width: max(4vmin, 30px);
-	height: max(4vmin, 30px);
+	width: max(4vmin, min(30px, 3.4vh));
+	height: max(4vmin, min(30px, 3.4vh));
 }
 
 .chips .stack-visual img {
-	width: max(4vmin, 30px);
-	height: max(4vmin, 30px);
+	width: max(4vmin, min(30px, 3.4vh));
+	height: max(4vmin, min(30px, 3.4vh));
 	position: absolute;
 	background-color: var(--yellow);
 	border-radius: 100%;

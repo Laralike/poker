@@ -3605,12 +3605,12 @@ function getSetupExplainerText({ humans, bots }) {
 		return "A table needs at least two players. Add a bot or a person.";
 	}
 	if (humans === 0) {
-		return `Nobody is playing. The ${bots} bots will play themselves with every hand face up, ` +
-			"which is a decent way to watch how it goes.";
+		return `Nobody is playing. The ${bots} bots play themselves with every hand face up, which ` +
+			"is a decent way to watch how it goes.";
 	}
 	if (humans === 1) {
-		return `You against ${bots} ${bots === 1 ? "bot" : "bots"}. Your cards show face up on this ` +
-			"screen and the bots play themselves. Nothing else to set up.";
+		return `You against ${bots} ${bots === 1 ? "bot" : "bots"}. Your cards show face up here and ` +
+			"the bots play themselves. Nothing else to set up.";
 	}
 	if (!IS_SYNC_BACKEND_CONFIGURED) {
 		return `With ${humans} people, nobody's cards appear on this screen. Each person is meant to ` +
@@ -3618,9 +3618,8 @@ function getSetupExplainerText({ humans, bots }) {
 			"this copy yet. Until it is, choose 1 person.";
 	}
 
-	const base = `${humans} people and ${bots} ${bots === 1 ? "bot" : "bots"}. No cards show on ` +
-		"this shared screen: once the game starts, each person opens the join link or scans their " +
-		"QR code to see their own hand.";
+	const base = `${humans} people and ${bots} ${bots === 1 ? "bot" : "bots"}. Cards stay off this ` +
+		"shared screen — each person opens the join link on their own device to see their hand.";
 	const serverText = getServerCheckText();
 	return serverText ? `${base}\n${serverText}` : base;
 }
@@ -4049,7 +4048,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v6";
+const SERVICE_WORKER_VERSION = "2026-08-31-v7";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

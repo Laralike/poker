@@ -10,9 +10,20 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.11.0";
+export const APP_VERSION = "1.12.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.12.0",
+		date: "2026-08-31",
+		title: "The table fits on the screen",
+		notes: [
+			"The table no longer runs off the top and bottom of a laptop screen. Everything — both rows of seats, the board, the controls — now fits without scrolling.",
+			"Card and chip sizes shrink to suit a short screen instead of only a narrow one.",
+			"The setup panel puts the player counts and name boxes on one row where there is space.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.11.0",
 		date: "2026-08-31",
