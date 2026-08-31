@@ -10,9 +10,18 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.10.0";
+export const APP_VERSION = "1.10.1";
 
 export const VERSION_LOG = [
+	{
+		version: "1.10.1",
+		date: "2026-08-31",
+		title: "Survive the server restarting",
+		notes: [
+			'If the table server restarts in the middle of a hand, the game now refills it by itself within a few seconds instead of leaving everyone stuck on "Table unavailable".',
+		],
+		estimated: false,
+	},
 	{
 		version: "1.10.0",
 		date: "2026-08-31",

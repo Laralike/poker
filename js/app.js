@@ -1884,6 +1884,43 @@ function initStateSyncForGame() {
 	tableId = tableUrl.searchParams.get("tableId") ||
 		Math.random().toString(36).slice(2, 8);
 	syncTableUrlWithState();
+	startStateSyncHeartbeat();
+}
+
+/* --------------------------------------------------------------------------------------------------
+State heartbeat
+
+State is normally published when something happens. That is not enough on its own: while the table
+waits for a person to act, nothing happens, so nothing is published -- and if the server restarts in
+that window (a redeploy, or waking from sleep, both routine on free hosting) it comes back empty and
+stays empty. Every seat then sits on "Table unavailable" while the table waits for an action nobody
+can send. Re-publishing on a slow timer closes that hole: a restarted server is refilled within a few
+seconds without anyone doing anything.
+---------------------------------------------------------------------------------------------------*/
+
+const STATE_HEARTBEAT_INTERVAL = 5000;
+let stateHeartbeatTimer = null;
+
+function startStateSyncHeartbeat() {
+	stopStateSyncHeartbeat();
+	if (!hasStateSyncEnabled()) {
+		return;
+	}
+	stateHeartbeatTimer = setInterval(() => {
+		if (!hasStateSyncEnabled()) {
+			stopStateSyncHeartbeat();
+			return;
+		}
+		queueStateSync(0);
+	}, STATE_HEARTBEAT_INTERVAL);
+}
+
+function stopStateSyncHeartbeat() {
+	if (stateHeartbeatTimer === null) {
+		return;
+	}
+	clearInterval(stateHeartbeatTimer);
+	stateHeartbeatTimer = null;
 }
 
 // The QR codes are only useful to someone holding a phone that reads them. Showing the join address
@@ -3985,7 +4022,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v4";
+const SERVICE_WORKER_VERSION = "2026-08-31-v5";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({
