@@ -284,6 +284,27 @@
 				<div class="cardslot"></div>
 			</section>
 			<section class="actions">
+				<div id="table-setup" class="table-setup">
+					<div class="setup-counts">
+						<div class="setup-row">
+							<span class="setup-label">People</span>
+							<button type="button" id="humans-decrement" class="setup-step"
+								aria-label="One fewer person">-</button>
+							<span id="humans-count" class="setup-count">1</span>
+							<button type="button" id="humans-increment" class="setup-step"
+								aria-label="One more person">+</button>
+						</div>
+						<div class="setup-row">
+							<span class="setup-label">Bots</span>
+							<button type="button" id="bots-decrement" class="setup-step"
+								aria-label="One fewer bot">-</button>
+							<span id="bots-count" class="setup-count">5</span>
+							<button type="button" id="bots-increment" class="setup-step"
+								aria-label="One more bot">+</button>
+						</div>
+					</div>
+					<p id="setup-explainer" class="setup-explainer"></p>
+				</div>
 				<div id="new-round-controls" class="new-round-controls">
 					<button type="button" id="start-button" name="button"><span
 							id="start-button-label">Start</span><span id="new-round-countdown" class="hidden"> in <span

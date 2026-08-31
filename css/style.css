@@ -599,6 +599,70 @@ TABLE-MIDDLE
     margin: 0 2vmin;
 }
 
+/* Who is playing used to be implied by which seats had names typed in. This says it out loud. */
+.table-setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.setup-counts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.setup-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.setup-label {
+    color: var(--blue-lightest);
+    min-width: 3.5rem;
+}
+
+.setup-count {
+    min-width: 1.5rem;
+    text-align: center;
+    color: var(--yellow);
+    font-size: 1.2rem;
+}
+
+.setup-step {
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+    margin: 0;
+    padding: 0;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.setup-explainer {
+    max-width: 46ch;
+    margin: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    color: var(--blue-lightest);
+}
+
+/* The case that leaves you staring at a table with no cards on it. Amber rather than the error red,
+   because it is a heads-up about a choice, not a broken thing. */
+.setup-explainer.setup-warning {
+    color: var(--yellow-active);
+}
+
 /* On a phone the seat grid can be taller than the screen, which used to push the action row and the
    footer below the fold with nothing to suggest they were there. Pinning the row to the bottom of
    the viewport means the controls are reachable however tall the table gets. */

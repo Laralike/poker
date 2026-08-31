@@ -28,6 +28,11 @@ Fixes to problems found while playing:
 - **Mobile layout no longer runs off the screen.** The companion view was `100vw` wide *plus* side
   margins, and pinch-zoom was disabled, so an overflowing page could not be recovered. Pages now fit
   at 320px, the action row stays pinned within reach, and zoom works again.
+- **A setup panel that says who is playing.** Who was human and who was a bot depended entirely on
+  which of the six seats had a name typed into them, with nothing on screen to explain it — and
+  nothing to warn that choosing two or more people hides *everybody's* cards until each of them
+  joins on their own phone. There are now People / Bots counters, and a line telling you what the
+  current choice actually means, including a warning when multiplayer cannot work yet.
 - **Amounts are in pounds.**
 - **Removed the upstream analytics tag**, which was bound to the original author's account.
   The `globalThis.umami?.track(...)` calls in `js/app.js` are optional and simply do nothing;

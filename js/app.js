@@ -65,6 +65,7 @@ import { createHumanTurnController } from "./shared/humanTurnController.js";
 import { formatMoney, formatMoneyCompact } from "./shared/currency.js";
 import {
 	ACTION_ENDPOINT as ACTION_SYNC_ENDPOINT,
+	IS_SYNC_BACKEND_CONFIGURED,
 	STATE_ENDPOINT as STATE_SYNC_ENDPOINT,
 } from "./shared/syncConfig.js";
 import { initSound, initSoundButton, playTurnChime } from "./shared/sound.js";
@@ -105,6 +106,14 @@ const newRoundCancelButton = document.querySelector("#new-round-cancel-button");
 const instructionsButton = document.querySelector("#instructions-button");
 const rotateIcons = document.querySelectorAll(".seat .rotate");
 const closeButtons = document.querySelectorAll(".close");
+const tableSetupEl = document.getElementById("table-setup");
+const humansCountEl = document.getElementById("humans-count");
+const botsCountEl = document.getElementById("bots-count");
+const humansDecrementButton = document.getElementById("humans-decrement");
+const humansIncrementButton = document.getElementById("humans-increment");
+const botsDecrementButton = document.getElementById("bots-decrement");
+const botsIncrementButton = document.getElementById("bots-increment");
+const setupExplainerEl = document.getElementById("setup-explainer");
 const notification = document.querySelector("#notification");
 const foldButton = document.querySelector("#fold-button");
 const actionButton = document.querySelector("#action-button");
@@ -2432,6 +2441,7 @@ function startGame() {
 			);
 			startButton.classList.add("hidden");
 			instructionsButton.classList.add("hidden");
+			setTableSetupVisible(false);
 			closeAllOverlays();
 			gameState.gameStarted = true;
 			initStateSyncForGame();
@@ -3453,6 +3463,163 @@ function doShowdown() {
 Seat-Editing Helpers
 ---------------------------------------------------------------------------------------------------*/
 
+/* --------------------------------------------------------------------------------------------------
+Table Setup
+
+Who is playing was decided entirely by which seats had a name typed into them -- blank meant bot --
+with nothing on screen to say so, and nothing to warn that picking two people hides everybody's cards
+until each of them joins on their own phone. This panel makes both explicit.
+
+The seats stay the source of truth: these controls just add and clear names, so typing directly on a
+seat still works and the counts follow along.
+---------------------------------------------------------------------------------------------------*/
+
+const MIN_TABLE_SEATS = 2;
+const DEFAULT_PLAYER_NAMES = ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5", "Player 6"];
+
+function getVisibleSetupSeats() {
+	return seatRefs.filter((seatRef) => !seatRef.seatEl.classList.contains("hidden"));
+}
+
+function getSeatName(seatRef) {
+	return seatRef.nameEl.textContent.trim();
+}
+
+function readTableSetup() {
+	const visibleSeats = getVisibleSetupSeats();
+	const humanSeats = visibleSeats.filter((seatRef) => getSeatName(seatRef) !== "");
+	return {
+		visibleSeats,
+		humanSeats,
+		humans: humanSeats.length,
+		bots: visibleSeats.length - humanSeats.length,
+	};
+}
+
+function getSetupExplainerText({ humans, bots }) {
+	if (humans + bots < MIN_TABLE_SEATS) {
+		return "A table needs at least two players. Add a bot or a person.";
+	}
+	if (humans === 0) {
+		return `Nobody is playing. The ${bots} bots will play themselves with every hand face up, ` +
+			"which is a decent way to watch how it goes.";
+	}
+	if (humans === 1) {
+		return `You against ${bots} ${bots === 1 ? "bot" : "bots"}. Your cards show face up on this ` +
+			"screen and the bots play themselves. Nothing else to set up.";
+	}
+	if (!IS_SYNC_BACKEND_CONFIGURED) {
+		return `With ${humans} people, nobody's cards appear on this screen. Each person is meant to ` +
+			"see their own on their phone, and the server that does that has not been set up for " +
+			"this copy yet. Until it is, choose 1 person.";
+	}
+	return `${humans} people and ${bots} ${bots === 1 ? "bot" : "bots"}. No cards show on this ` +
+		"shared screen: once the game starts, each person opens their own link or QR code on their " +
+		"phone to see their hand.";
+}
+
+function refreshTableSetup() {
+	if (!tableSetupEl || gameState.gameStarted) {
+		return;
+	}
+
+	const setup = readTableSetup();
+	humansCountEl.textContent = `${setup.humans}`;
+	botsCountEl.textContent = `${setup.bots}`;
+	setupExplainerEl.textContent = getSetupExplainerText(setup);
+	setupExplainerEl.classList.toggle(
+		"setup-warning",
+		setup.humans >= 2 && !IS_SYNC_BACKEND_CONFIGURED,
+	);
+
+	const total = setup.visibleSeats.length;
+	humansDecrementButton.disabled = setup.humans <= 0;
+	humansIncrementButton.disabled = setup.humans >= seatRefs.length;
+	botsDecrementButton.disabled = setup.bots <= 0;
+	botsIncrementButton.disabled = total >= seatRefs.length;
+	startButton.disabled = total < MIN_TABLE_SEATS;
+}
+
+// Bring a hidden seat back so a count can grow past the seats currently on the table.
+function revealNextSeat() {
+	const hiddenSeat = seatRefs.find((seatRef) => seatRef.seatEl.classList.contains("hidden"));
+	if (!hiddenSeat) {
+		return null;
+	}
+	renderSeatSetupState(hiddenSeat, { visible: true });
+	return hiddenSeat;
+}
+
+function addHumanSeat() {
+	const setup = readTableSetup();
+	// Prefer turning an existing bot seat into a person, so the table size stays put.
+	const botSeat = setup.visibleSeats.find((seatRef) => getSeatName(seatRef) === "") ??
+		revealNextSeat();
+	if (!botSeat) {
+		return;
+	}
+
+	const taken = new Set(setup.humanSeats.map(getSeatName));
+	botSeat.nameEl.textContent = DEFAULT_PLAYER_NAMES.find((name) => !taken.has(name)) ?? "Player";
+	refreshTableSetup();
+}
+
+function removeHumanSeat() {
+	const setup = readTableSetup();
+	const lastHuman = setup.humanSeats[setup.humanSeats.length - 1];
+	if (!lastHuman) {
+		return;
+	}
+	// Clearing the name is what makes a seat a bot.
+	lastHuman.nameEl.textContent = "";
+	refreshTableSetup();
+}
+
+function addBotSeat() {
+	const revealed = revealNextSeat();
+	if (revealed) {
+		revealed.nameEl.textContent = "";
+	}
+	refreshTableSetup();
+}
+
+function removeBotSeat() {
+	const setup = readTableSetup();
+	const lastBot = [...setup.visibleSeats].reverse().find((seatRef) => getSeatName(seatRef) === "");
+	if (!lastBot) {
+		return;
+	}
+	renderSeatSetupState(lastBot, { visible: false });
+	refreshTableSetup();
+}
+
+function setTableSetupVisible(isVisible) {
+	tableSetupEl?.classList.toggle("hidden", !isVisible);
+}
+
+function initTableSetup() {
+	if (!tableSetupEl) {
+		return;
+	}
+
+	humansIncrementButton.addEventListener("click", addHumanSeat);
+	humansDecrementButton.addEventListener("click", removeHumanSeat);
+	botsIncrementButton.addEventListener("click", addBotSeat);
+	botsDecrementButton.addEventListener("click", removeBotSeat);
+	// Typing a name straight onto a seat still works; the counts follow it.
+	seatRefs.forEach((seatRef) => {
+		seatRef.nameEl.addEventListener("input", refreshTableSetup);
+		seatRef.nameEl.addEventListener("blur", refreshTableSetup);
+	});
+
+	// Open on the one combination that needs nothing else set up.
+	const visibleSeats = getVisibleSetupSeats();
+	if (visibleSeats.length > 0 && readTableSetup().humans === 0) {
+		visibleSeats[0].nameEl.textContent = DEFAULT_PLAYER_NAMES[0];
+	}
+	refreshTableSetup();
+}
+
 function rotateSeat(ev) {
 	const seatEl = ev.currentTarget.closest(".seat");
 	const seatRef = seatRefs.find((currentSeatRef) => currentSeatRef.seatEl === seatEl);
@@ -3464,6 +3631,7 @@ function deletePlayer(ev) {
 	const seatEl = ev.currentTarget.closest(".seat");
 	const seatRef = seatRefs.find((currentSeatRef) => currentSeatRef.seatEl === seatEl);
 	renderSeatSetupState(seatRef, { visible: false });
+	refreshTableSetup();
 }
 
 /* --------------------------------------------------------------------------------------------------
@@ -3479,12 +3647,8 @@ function init() {
 		try {
 			globalThis.top.location.href = globalThis.location.href;
 		} catch {
-			alert(
-				"No framing allowed. Please visit: https://tehes.github.io/poker/",
-			);
-			throw new Error(
-				"No framing allowed. Open the original: https://tehes.github.io/poker/",
-			);
+			alert("No framing allowed. Please open this page directly.");
+			throw new Error("No framing allowed. Open this page directly.");
 		}
 	}
 
@@ -3498,6 +3662,7 @@ function init() {
 			closeAllOverlays();
 		}
 	}, false);
+	initTableSetup();
 	startButton.addEventListener("click", startGame, false);
 	newRoundCancelButton.addEventListener(
 		"click",
@@ -3601,7 +3766,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-30-v1";
+const SERVICE_WORKER_VERSION = "2026-08-31-v1";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

@@ -10,9 +10,20 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.6.0";
+export const APP_VERSION = "1.7.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.7.0",
+		date: "2026-08-31",
+		title: "Choose who is playing",
+		notes: [
+			"A setup panel now lets you pick how many people and how many bots are at the table, instead of leaving it to guess which seats you typed a name into.",
+			"It also tells you what your choice means: with one person your cards are face up on the shared screen, and with two or more everyone needs their own phone.",
+			"Bots continue to play themselves automatically, as before.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.6.0",
 		date: "2026-08-30",

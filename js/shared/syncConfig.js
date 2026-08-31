@@ -20,5 +20,11 @@ MODULE BOUNDARY: Shared Sync Endpoint Configuration
 // ---------------------------------------------------------------------------------------------
 export const SYNC_API_BASE_URL = "https://poker.tehes.deno.net";
 
+// The upstream deployment only accepts requests from the upstream site, so while this still points
+// at it, multiplayer cannot work from a copy. The setup panel uses this to say so plainly instead of
+// letting people pick a game that will never show them their cards.
+const UPSTREAM_DEFAULT_BASE_URL = "https://poker.tehes.deno.net";
+export const IS_SYNC_BACKEND_CONFIGURED = SYNC_API_BASE_URL !== UPSTREAM_DEFAULT_BASE_URL;
+
 export const STATE_ENDPOINT = `${SYNC_API_BASE_URL}/state`;
 export const ACTION_ENDPOINT = `${SYNC_API_BASE_URL}/action`;
