@@ -787,7 +787,7 @@ export function createSeatActionControls({
 	seatIndex,
 	actionEndpoint,
 	actionStep = 10,
-	submitRecoveryDelay = 8000,
+	submitRecoveryDelay = 12000,
 	visibleElements = [],
 	foldButton,
 	actionButton,

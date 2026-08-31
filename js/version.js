@@ -10,9 +10,21 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.14.0";
+export const APP_VERSION = "1.15.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.15.0",
+		date: "2026-08-31",
+		title: "Snappier turns",
+		notes: [
+			"Acting is about twice as quick: the table now notices a player's move in a third of a second rather than a whole one.",
+			"Bots pause for a beat rather than three seconds each, so a lap of the table no longer takes the best part of a minute. Still slow enough to follow what they did.",
+			"The wait between hands is seven seconds rather than twenty, and Deal Next Round still skips it.",
+			"The message warning that a move has not reached the table now waits longer before appearing, so a slow connection does not look like a fault.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.14.0",
 		date: "2026-08-31",

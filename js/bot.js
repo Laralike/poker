@@ -69,7 +69,9 @@ import { getPlayerActionState } from "./shared/actionModel.js";
 ========================== */
 // Configuration constants
 // Delay in milliseconds between enqueued bot actions
-export let BOT_ACTION_DELAY = 3000;
+// A pause long enough to follow what a bot did, without four of them turning one orbit into a
+// minute of waiting. Watching the bots play is part of the point, so this is not zero.
+export let BOT_ACTION_DELAY = 1400;
 const FAST_FORWARD_BOT_ACTION_DELAY = 140;
 const RANK_ORDER = "23456789TJQKA";
 

@@ -53,7 +53,8 @@ const soundButton = document.getElementById("sound-button");
 const onlineOnlyElements = [betEl, potEl, singleActionPanelEl];
 const urlParams = new URLSearchParams(globalThis.location.search);
 const tableId = urlParams.get("tableId") || "";
-const REFRESH_INTERVAL = 750;
+// Half of this is how long it takes to notice your own turn has come round.
+const REFRESH_INTERVAL = 400;
 const ACTION_STEP = 10;
 // See remoteTable.js: 204 means "nothing new", so a client holding an unbeatable version would
 // never refresh again. Fall back to a full fetch after a quiet spell.

@@ -81,7 +81,8 @@ const seatRefs = Array.from(document.querySelectorAll(".seat")).map((seatEl, sea
 const urlParams = new URLSearchParams(globalThis.location.search);
 const tableId = urlParams.get("tableId") || "";
 const seatIndexParam = parseOptionalInt(urlParams.get("seatIndex"));
-const REFRESH_INTERVAL = 750;
+// Half of this is how long it takes to notice your own turn has come round.
+const REFRESH_INTERVAL = 400;
 // A backgrounded tab keeps checking in, just less often. Stopping altogether let the seat's presence
 // lapse, so the shared table would grab the player's buttons the moment they looked at another
 // window.
@@ -134,7 +135,7 @@ const actionControls = createSeatActionControls({
 	sliderOutput,
 	decrementButton: amountDecrementButton,
 	incrementButton: amountIncrementButton,
-	onActionError: () => setNotification("That did not reach the table. Try again."),
+	onActionError: () => setNotification("The table has not picked that up yet — press again if nothing happens."),
 	onNewTurn: () => playTurnChime(),
 });
 

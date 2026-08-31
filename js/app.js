@@ -217,20 +217,22 @@ const notifArr = [];
 const pendingNotif = [];
 let isNotifProcessing = false;
 let notifTimer = null;
-const DEFAULT_NOTIF_INTERVAL = 750;
+const DEFAULT_NOTIF_INTERVAL = 450;
 let NOTIF_INTERVAL = DEFAULT_NOTIF_INTERVAL;
 const FAST_FORWARD_NOTIF_INTERVAL = 0;
-const DEFAULT_ACTION_LABEL_DURATION = 3000;
+const DEFAULT_ACTION_LABEL_DURATION = 1800;
 let ACTION_LABEL_DURATION = DEFAULT_ACTION_LABEL_DURATION;
 const FAST_FORWARD_ACTION_LABEL_DURATION = 180;
-const DEFAULT_RUNOUT_PHASE_DELAY = 3000;
+const DEFAULT_RUNOUT_PHASE_DELAY = 1600;
 let RUNOUT_PHASE_DELAY = DEFAULT_RUNOUT_PHASE_DELAY;
 const FAST_FORWARD_RUNOUT_PHASE_DELAY = 320;
 const FAST_FORWARD_CHIP_TRANSFER_DURATION = 160;
 const FAST_FORWARD_CHIP_TRANSFER_STEPS = 8;
 const DEFAULT_CHIP_TRANSFER_STEPS = 30;
 const WINNER_REACTION_DURATION = 2000;
-const NEW_ROUND_COUNTDOWN_SECONDS = 20;
+// Long enough to read who won and see the chips move, short enough that nobody is drumming their
+// fingers. Anyone can skip it with Deal Next Round.
+const NEW_ROUND_COUNTDOWN_SECONDS = 7;
 const NEW_ROUND_COUNTDOWN_INTERVAL = 1000;
 const SAVED_GAME_SCHEMA_VERSION = 1;
 const SAVED_GAME_STORAGE_KEY = "poker:saved-game:v1";
@@ -262,7 +264,9 @@ let remoteSeatLastSeen = {};
 // trying to close, so the table waits briefly rather than assuming nobody joined.
 let presenceRefreshedAt = 0;
 const STATE_SYNC_DELAY = 750;
-const ACTION_POLL_INTERVAL = 1000;
+// How often the table checks whether a player has acted. This is dead time on every single turn,
+// and it only runs while a person is actually being waited on, so it can afford to be brisk.
+const ACTION_POLL_INTERVAL = 300;
 // How often the shared table re-checks whether a seat's device is still there while waiting on it.
 const REMOTE_TURN_REVIEW_INTERVAL = 1000;
 // After this much silence from a device, stop implying its owner is sitting there playing.
@@ -4132,7 +4136,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v9";
+const SERVICE_WORKER_VERSION = "2026-08-31-v10";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({
