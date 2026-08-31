@@ -105,12 +105,13 @@ function withCors(origin, headers = {}) {
 	return { ...corsHeaders, ...headers };
 }
 
-function jsonResponse(body, origin, status = 200) {
+function jsonResponse(body, origin, status = 200, extraHeaders = {}) {
 	return new Response(JSON.stringify(body), {
 		status,
 		headers: withCors(origin, {
 			"Content-Type": "application/json",
 			"Cache-Control": "no-store",
+			...extraHeaders,
 		}),
 	});
 }
@@ -393,14 +394,22 @@ function handleGetTable(url, origin) {
 // game will not sync. Reports the two things that are easy to get wrong: whether the database is
 // attached, and which sites are allowed to talk to this server.
 function handleHealth(origin) {
-	return jsonResponse({
-		ok: true,
-		runtime: runtimeDeno ? "deno" : "node",
-		tablesInMemory: store.size,
-		allowedOrigins: [...allowedOrigins],
-		hint: "Server is running. If the game will not sync, check that the site you play on " +
-			"appears in allowedOrigins above, exactly, including https:// and with no trailing slash.",
-	}, origin);
+	// Deliberately readable from anywhere. It carries no game data, and the case worth diagnosing is
+	// "this site is not on the allow list" -- which, with normal CORS, would block the very answer
+	// that explains the problem.
+	return jsonResponse(
+		{
+			ok: true,
+			runtime: runtimeDeno ? "deno" : "node",
+			tablesInMemory: store.size,
+			allowedOrigins: [...allowedOrigins],
+			hint: "Server is running. If the game will not sync, check that the site you play on " +
+				"appears in allowedOrigins above, exactly, including https:// and with no trailing slash.",
+		},
+		origin,
+		200,
+		{ "Access-Control-Allow-Origin": "*" },
+	);
 }
 
 function handleOptions(origin) {

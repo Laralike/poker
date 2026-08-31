@@ -20,12 +20,7 @@ MODULE BOUNDARY: Main Table Runtime
 Imports
 ---------------------------------------------------------------------------------------------------*/
 
-import {
-	chooseBotAction,
-	enqueueBotAction,
-	normalizeBotActionRequest,
-	setBotPlaybackFast,
-} from "./bot.js";
+import { chooseBotAction, enqueueBotAction, normalizeBotActionRequest, setBotPlaybackFast } from "./bot.js";
 import {
 	advanceDealer,
 	calculateWinProbabilities,
@@ -57,26 +52,21 @@ import {
 	resolveTurnAction,
 } from "./gameEngine.js";
 import QrCreator from "./qr-creator.js";
-import {
-	getActionButtonLabel,
-	getPlayerActionState,
-} from "./shared/actionModel.js";
+import { getActionButtonLabel, getPlayerActionState } from "./shared/actionModel.js";
 import { createHumanTurnController } from "./shared/humanTurnController.js";
 import { formatMoney, formatMoneyCompact } from "./shared/currency.js";
 import {
 	ACTION_ENDPOINT as ACTION_SYNC_ENDPOINT,
+	HEALTH_ENDPOINT,
 	IS_SYNC_BACKEND_CONFIGURED,
 	STATE_ENDPOINT as STATE_SYNC_ENDPOINT,
 } from "./shared/syncConfig.js";
 import { initSound, initSoundButton, playTurnChime } from "./shared/sound.js";
+import { buildPublicPlayerView, buildSyncView } from "./shared/syncViewModel.js";
 import {
-	buildPublicPlayerView,
-	buildSyncView,
-} from "./shared/syncViewModel.js";
-import {
-	clearSeatActionVisualState,
 	clearChipTransferAnimation,
 	clearRenderedSeat,
+	clearSeatActionVisualState,
 	renderChipStacks,
 	renderChipTransferAnimation,
 	renderCommunityCards as renderTableCommunityCards,
@@ -435,20 +425,13 @@ function createPlayerSnapshot(player) {
 		winnerReactionUntil: normalizeNumber(player.winnerReactionUntil, 0),
 		isWinner: player.isWinner === true,
 		actionState: player.actionState ? { ...player.actionState } : null,
-		winProbability: typeof player.winProbability === "number"
-			? player.winProbability
+		winProbability: typeof player.winProbability === "number" ? player.winProbability : null,
+		lastNonFinalWinProbability: typeof player.lastNonFinalWinProbability === "number"
+			? player.lastNonFinalWinProbability
 			: null,
-		lastNonFinalWinProbability:
-			typeof player.lastNonFinalWinProbability === "number"
-				? player.lastNonFinalWinProbability
-				: null,
 		seatIndex: player.seatIndex,
-		holeCards: Array.isArray(player.holeCards)
-			? player.holeCards.slice(0, 2)
-			: [null, null],
-		visibleHoleCards: Array.isArray(player.visibleHoleCards)
-			? player.visibleHoleCards.slice(0, 2)
-			: [false, false],
+		holeCards: Array.isArray(player.holeCards) ? player.holeCards.slice(0, 2) : [null, null],
+		visibleHoleCards: Array.isArray(player.visibleHoleCards) ? player.visibleHoleCards.slice(0, 2) : [false, false],
 		dealer: player.dealer === true,
 		smallBlind: player.smallBlind === true,
 		bigBlind: player.bigBlind === true,
@@ -658,23 +641,16 @@ function normalizeSavedPlayer(player) {
 		name: typeof player?.name === "string" ? player.name : "Player",
 		isBot: player?.isBot === true,
 		seatSlot: normalizeNumber(player?.seatSlot, normalizeNumber(player?.seatIndex, 0)),
-		winnerReactionEmoji: typeof player?.winnerReactionEmoji === "string"
-			? player.winnerReactionEmoji
-			: "",
+		winnerReactionEmoji: typeof player?.winnerReactionEmoji === "string" ? player.winnerReactionEmoji : "",
 		winnerReactionUntil: normalizeNumber(player?.winnerReactionUntil, 0),
 		isWinner: player?.isWinner === true,
 		actionState: player?.actionState ? { ...player.actionState } : null,
-		winProbability: typeof player?.winProbability === "number"
-			? player.winProbability
+		winProbability: typeof player?.winProbability === "number" ? player.winProbability : null,
+		lastNonFinalWinProbability: typeof player?.lastNonFinalWinProbability === "number"
+			? player.lastNonFinalWinProbability
 			: null,
-		lastNonFinalWinProbability:
-			typeof player?.lastNonFinalWinProbability === "number"
-				? player.lastNonFinalWinProbability
-				: null,
 		seatIndex: normalizeNumber(player?.seatIndex, 0),
-		holeCards: Array.isArray(player?.holeCards)
-			? player.holeCards.slice(0, 2)
-			: [null, null],
+		holeCards: Array.isArray(player?.holeCards) ? player.holeCards.slice(0, 2) : [null, null],
 		visibleHoleCards: Array.isArray(player?.visibleHoleCards)
 			? player.visibleHoleCards.slice(0, 2)
 			: [false, false],
@@ -707,23 +683,17 @@ function restoreRuntimeState(runtimeState = {}) {
 	notifArr.splice(
 		0,
 		notifArr.length,
-		...(Array.isArray(runtimeState.notifications)
-			? runtimeState.notifications.slice(0, MAX_ITEMS)
-			: []),
+		...(Array.isArray(runtimeState.notifications) ? runtimeState.notifications.slice(0, MAX_ITEMS) : []),
 	);
 	pendingNotif.splice(
 		0,
 		pendingNotif.length,
-		...(Array.isArray(runtimeState.pendingNotifications)
-			? runtimeState.pendingNotifications
-			: []),
+		...(Array.isArray(runtimeState.pendingNotifications) ? runtimeState.pendingNotifications : []),
 	);
 
 	if (logList) {
 		logList.replaceChildren();
-		const logEntries = Array.isArray(runtimeState.logEntries)
-			? runtimeState.logEntries
-			: notifArr;
+		const logEntries = Array.isArray(runtimeState.logEntries) ? runtimeState.logEntries : notifArr;
 		logEntries.forEach((message) => {
 			const logEntry = document.createElement("div");
 			logEntry.textContent = message;
@@ -761,15 +731,9 @@ function restoreGameState(savedGameState) {
 		spectatorMode: savedGameState.spectatorMode === true,
 		raisesThisRound: normalizeNumber(savedGameState.raisesThisRound, 0),
 		handInProgress: savedGameState.handInProgress === true,
-		deck: Array.isArray(savedGameState.deck)
-			? savedGameState.deck.slice()
-			: INITIAL_DECK.slice(),
-		cardGraveyard: Array.isArray(savedGameState.cardGraveyard)
-			? savedGameState.cardGraveyard.slice()
-			: [],
-		communityCards: Array.isArray(savedGameState.communityCards)
-			? savedGameState.communityCards.slice()
-			: [],
+		deck: Array.isArray(savedGameState.deck) ? savedGameState.deck.slice() : INITIAL_DECK.slice(),
+		cardGraveyard: Array.isArray(savedGameState.cardGraveyard) ? savedGameState.cardGraveyard.slice() : [],
+		communityCards: Array.isArray(savedGameState.communityCards) ? savedGameState.communityCards.slice() : [],
 		players: activePlayers,
 		allPlayers,
 		chipTransfer: clonePlainValue(savedGameState.chipTransfer, null),
@@ -1005,9 +969,7 @@ function clearBotCheckRaiseIntent(player, reason) {
 }
 
 function clearBotCheckRaiseIntents(reason) {
-	gameState.players.forEach((player) =>
-		clearBotCheckRaiseIntent(player, reason)
-	);
+	gameState.players.forEach((player) => clearBotCheckRaiseIntent(player, reason));
 }
 
 function clearBotPassiveValueCheckIntent(player, reason) {
@@ -1033,9 +995,7 @@ function clearBotPassiveValueCheckIntent(player, reason) {
 }
 
 function clearBotPassiveValueCheckIntents(reason) {
-	gameState.players.forEach((player) =>
-		clearBotPassiveValueCheckIntent(player, reason)
-	);
+	gameState.players.forEach((player) => clearBotPassiveValueCheckIntent(player, reason));
 }
 
 function buildSpeedmodeHandStartPlayers(players) {
@@ -1143,8 +1103,7 @@ function bindSeatRefPlayer(player) {
 	}
 	seatRef.playerSeatIndex = player.seatIndex;
 	seatRef.clearActionLabelState = () => clearPlayerActionState(player);
-	seatRef.clearWinnerReactionState = () =>
-		clearPlayerWinnerReactionState(player);
+	seatRef.clearWinnerReactionState = () => clearPlayerWinnerReactionState(player);
 }
 
 function buildPlayerSeatState(
@@ -1458,9 +1417,7 @@ function renderVersionOverlay() {
 }
 
 function syncOverlayBackdrop() {
-	const isOverlayOpen = Object.values(overlays).some(({ el }) =>
-		el && !el.classList.contains("hidden")
-	);
+	const isOverlayOpen = Object.values(overlays).some(({ el }) => el && !el.classList.contains("hidden"));
 	overlayBackdrop.classList.toggle("hidden", !isOverlayOpen);
 }
 
@@ -1851,10 +1808,8 @@ function getHandsPlayedBucket(handCount) {
 }
 
 function getExitCounts() {
-	const humansWithChipsAtExit =
-		gameState.players.filter((p) => !p.isBot && p.chips > 0).length;
-	const botsWithChipsAtExit =
-		gameState.players.filter((p) => p.isBot && p.chips > 0).length;
+	const humansWithChipsAtExit = gameState.players.filter((p) => !p.isBot && p.chips > 0).length;
+	const botsWithChipsAtExit = gameState.players.filter((p) => p.isBot && p.chips > 0).length;
 	return { humansWithChipsAtExit, botsWithChipsAtExit };
 }
 
@@ -1870,9 +1825,7 @@ function trackUnfinishedExit() {
 		return;
 	}
 	const { humansWithChipsAtExit, botsWithChipsAtExit } = getExitCounts();
-	const exitCategory = humansWithChipsAtExit === 0
-		? "last_human_bust"
-		: "humans_left_with_chips";
+	const exitCategory = humansWithChipsAtExit === 0 ? "last_human_bust" : "humans_left_with_chips";
 	exitEventSent = true;
 	globalThis.umami?.track("Poker", {
 		finished: false,
@@ -1949,9 +1902,7 @@ function renderJoinBanner() {
 }
 
 function createTurnToken() {
-	return `${Date.now().toString(36)}${
-		Math.random().toString(36).slice(2, 8)
-	}`;
+	return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function setPendingAction(player) {
@@ -1998,9 +1949,9 @@ async function fetchPendingRemoteAction(turnToken) {
 	}
 
 	try {
-		const url = `${ACTION_SYNC_ENDPOINT}?tableId=${
-			encodeURIComponent(tableId)
-		}&turnToken=${encodeURIComponent(turnToken)}`;
+		const url = `${ACTION_SYNC_ENDPOINT}?tableId=${encodeURIComponent(tableId)}&turnToken=${
+			encodeURIComponent(turnToken)
+		}`;
 		const res = await fetch(url, {
 			cache: "no-store",
 		});
@@ -2328,16 +2279,12 @@ function triggerMainPotWinnerReactions(context) {
 
 function updateHandStrengthDisplays() {
 	const communityCards = getCommunityCardCodes();
-	gameState.players.forEach((player) =>
-		renderPlayerSeat(player, communityCards)
-	);
+	gameState.players.forEach((player) => renderPlayerSeat(player, communityCards));
 }
 
 function updateWinProbabilityDisplays() {
 	const communityCards = getCommunityCardCodes();
-	gameState.players.forEach((player) =>
-		renderPlayerSeat(player, communityCards)
-	);
+	gameState.players.forEach((player) => renderPlayerSeat(player, communityCards));
 }
 
 function computeSpectatorWinProbabilities(reason = "") {
@@ -2507,9 +2454,7 @@ function createPlayers() {
 		}
 	}
 
-	const activeSeatRefs = seatRefs.filter((seatRef) =>
-		!seatRef.seatEl.classList.contains("hidden")
-	);
+	const activeSeatRefs = seatRefs.filter((seatRef) => !seatRef.seatEl.classList.contains("hidden"));
 	for (const seatRef of activeSeatRefs) {
 		const seatIndex = gameState.players.length;
 		const playerState = {
@@ -2740,9 +2685,7 @@ function preFlop() {
 		blindLevel: gameState.blindLevel,
 		smallBlind: gameState.smallBlind,
 		bigBlind: gameState.bigBlind,
-		dealerSeatIndex: gameState.players.find((player) =>
-			player.dealer
-		)?.seatIndex ?? null,
+		dealerSeatIndex: gameState.players.find((player) => player.dealer)?.seatIndex ?? null,
 		communityCards: [],
 		players: handStartPlayers,
 	});
@@ -3005,9 +2948,7 @@ function runBotTurn({ player, cycles, nextPlayer }) {
 			const fallbackActionState = getPlayerActionState(gameState, player);
 			resolvedAction = applyTurnAction(
 				player,
-				fallbackActionState.canCheck
-					? { action: "check" }
-					: { action: "fold" },
+				fallbackActionState.canCheck ? { action: "check" } : { action: "fold" },
 			);
 		}
 		continueAfterResolvedTurn({
@@ -3175,9 +3116,7 @@ function startBettingRound(options = {}) {
 		Number.isFinite(resumeTurn.seatIndex) &&
 		Number.isFinite(resumeTurn.cycles)
 	) {
-		const resumePlayer = gameState.players.find((player) =>
-			player.seatIndex === resumeTurn.seatIndex
-		);
+		const resumePlayer = gameState.players.find((player) => player.seatIndex === resumeTurn.seatIndex);
 		if (resumePlayer && !resumePlayer.folded && !resumePlayer.allIn) {
 			runTurn(resumePlayer, resumeTurn.cycles, nextPlayer);
 			return;
@@ -3243,8 +3182,7 @@ function getChipTransferRemainingDuration(chipTransfer) {
 	}
 
 	const endAt = chipTransfer.transfers.reduce(
-		(maxEndAt, transfer) =>
-			Math.max(maxEndAt, chipTransfer.startedAt + transfer.durationMs),
+		(maxEndAt, transfer) => Math.max(maxEndAt, chipTransfer.startedAt + transfer.durationMs),
 		chipTransfer.startedAt,
 	);
 	return Math.max(0, Math.ceil(endAt - Date.now()));
@@ -3361,9 +3299,7 @@ function doShowdown() {
 		uncontestedWinner: uncontestedWinner?.name ?? null,
 		uncontestedWinnerSeatIndex: uncontestedWinner?.seatIndex ?? null,
 		mainPotWinners: mainPotWinners.map((player) => player.name),
-		mainPotWinnerSeatIndexes: mainPotWinners.map((player) =>
-			player.seatIndex
-		),
+		mainPotWinnerSeatIndexes: mainPotWinners.map((player) => player.seatIndex),
 		winningPlayers: winningPlayers.map((player) => player.name),
 		winningSeatIndexes: winningPlayers.map((player) => player.seatIndex),
 		potResults: potResults.map((result) => ({ ...result })),
@@ -3401,9 +3337,7 @@ function doShowdown() {
 			applyBotReveal(uncontestedWinner, revealDecision);
 			registerBotReveal(uncontestedWinner);
 			enqueueNotification(
-				`${uncontestedWinner.name} reveals ${
-					revealDecision.codes.map(formatCardLabel).join(" ")
-				}`,
+				`${uncontestedWinner.name} reveals ${revealDecision.codes.map(formatCardLabel).join(" ")}`,
 			);
 		} else {
 			hidePlayerQr(uncontestedWinner);
@@ -3428,9 +3362,7 @@ function doShowdown() {
 	}
 
 	// Skip pure refund-only side pots in the log. They animate correctly, but they are not real wins.
-	const filteredResults = potResults.filter((result) =>
-		result.isRefundOnly !== true
-	);
+	const filteredResults = potResults.filter((result) => result.isRefundOnly !== true);
 
 	// --- Notification Consolidation ----------------------------------------------
 	// Consolidate notifications: if same player wins all pots, combine amounts
@@ -3536,9 +3468,93 @@ function getSetupExplainerText({ humans, bots }) {
 			"see their own on their phone, and the server that does that has not been set up for " +
 			"this copy yet. Until it is, choose 1 person.";
 	}
-	return `${humans} people and ${bots} ${bots === 1 ? "bot" : "bots"}. No cards show on this ` +
-		"shared screen: once the game starts, each person opens their own link or QR code on their " +
-		"phone to see their hand.";
+
+	const base = `${humans} people and ${bots} ${bots === 1 ? "bot" : "bots"}. No cards show on ` +
+		"this shared screen: once the game starts, each person opens the join link or scans their " +
+		"QR code to see their own hand.";
+	const serverText = getServerCheckText();
+	return serverText ? `${base}\n${serverText}` : base;
+}
+
+/* --------------------------------------------------------------------------------------------------
+Table server check
+
+Choosing two or more people commits everyone to seeing their cards on their own device, which only
+works if the server is up and willing to talk to this site. Both can be false with no visible symptom
+beyond a game that never updates, so ask the server directly and say what came back.
+---------------------------------------------------------------------------------------------------*/
+
+// null = not asked yet. Otherwise { state, detail }.
+let serverCheck = null;
+let serverCheckInFlight = false;
+
+function getOwnOrigin() {
+	return globalThis.location.origin;
+}
+
+async function checkTableServer() {
+	if (serverCheckInFlight || !IS_SYNC_BACKEND_CONFIGURED) {
+		return;
+	}
+
+	serverCheckInFlight = true;
+	serverCheck = { state: "checking" };
+	refreshTableSetup();
+
+	try {
+		// Free hosting sleeps when idle and can take the best part of a minute to wake, which is not
+		// a failure -- so wait properly rather than reporting a problem that is not there.
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 90_000);
+		const res = await fetch(HEALTH_ENDPOINT, {
+			cache: "no-store",
+			signal: controller.signal,
+		});
+		clearTimeout(timeout);
+
+		if (!res.ok) {
+			serverCheck = { state: "error", detail: `The server answered with an error (${res.status}).` };
+			return;
+		}
+
+		const payload = await res.json();
+		const allowed = Array.isArray(payload?.allowedOrigins) ? payload.allowedOrigins : [];
+		if (!allowed.includes(getOwnOrigin())) {
+			serverCheck = {
+				state: "origin",
+				detail: `The server is running but does not allow this site (${getOwnOrigin()}). ` +
+					`It allows: ${allowed.join(", ") || "nothing"}.`,
+			};
+			return;
+		}
+
+		serverCheck = { state: "ok" };
+	} catch (error) {
+		logFlow("table server check failed", error);
+		serverCheck = {
+			state: "unreachable",
+			detail: "Could not reach the table server. Free hosting sleeps when idle, so if it has " +
+				"not been used for a while, wait a minute and check again.",
+		};
+	} finally {
+		serverCheckInFlight = false;
+		refreshTableSetup();
+	}
+}
+
+function getServerCheckText() {
+	switch (serverCheck?.state) {
+		case "checking":
+			return "Checking the table server… this can take a minute if it has been asleep.";
+		case "ok":
+			return "Table server is ready.";
+		case "origin":
+		case "error":
+		case "unreachable":
+			return serverCheck.detail;
+		default:
+			return "";
+	}
 }
 
 function refreshTableSetup() {
@@ -3550,10 +3566,18 @@ function refreshTableSetup() {
 	humansCountEl.textContent = `${setup.humans}`;
 	botsCountEl.textContent = `${setup.bots}`;
 	setupExplainerEl.textContent = getSetupExplainerText(setup);
+	const serverProblem = serverCheck !== null && serverCheck.state !== "ok" &&
+		serverCheck.state !== "checking";
 	setupExplainerEl.classList.toggle(
 		"setup-warning",
-		setup.humans >= 2 && !IS_SYNC_BACKEND_CONFIGURED,
+		setup.humans >= 2 && (!IS_SYNC_BACKEND_CONFIGURED || serverProblem),
 	);
+
+	// Ask the server as soon as the choice starts to depend on it, not at start time when it is too
+	// late to do anything about the answer.
+	if (setup.humans >= 2 && IS_SYNC_BACKEND_CONFIGURED && serverCheck === null) {
+		checkTableServer();
+	}
 
 	const total = setup.visibleSeats.length;
 	humansDecrementButton.disabled = setup.humans <= 0;
@@ -3789,7 +3813,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v2";
+const SERVICE_WORKER_VERSION = "2026-08-31-v3";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

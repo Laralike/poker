@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.8.0";
+export const APP_VERSION = "1.9.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.9.0",
+		date: "2026-08-31",
+		title: "Multiplayer switched on",
+		notes: [
+			"The table is now connected to its own server, so games for two or more people work: everyone joins on their own laptop or phone and sees only their own cards.",
+			"Before starting a game for two or more, the table checks the server is reachable and says plainly what is wrong if it is not.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.8.0",
 		date: "2026-08-31",
