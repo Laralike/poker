@@ -188,7 +188,10 @@ export function buildSeatView(player, communityCards, gameState) {
 	};
 }
 
-export function buildSyncView(gameState, notifications = [], now = Date.now()) {
+// `tableControls` describes the buttons that belong to the whole table rather than to one seat --
+// fast forward, and starting the next round. They used to exist only on the shared screen, which
+// meant whoever was running the table had to keep switching windows to press them.
+export function buildSyncView(gameState, notifications = [], now = Date.now(), tableControls = null) {
 	const communityCards = Array.isArray(gameState?.communityCards) ? gameState.communityCards.slice() : [];
 	const players = Array.isArray(gameState?.players) ? gameState.players : [];
 
@@ -202,6 +205,7 @@ export function buildSyncView(gameState, notifications = [], now = Date.now()) {
 			playersPublic: players.map((player) => buildPublicPlayerView(player, communityCards, gameState, now)),
 			chipTransfer: buildPublicChipTransferState(gameState),
 			pendingAction: gameState.pendingAction ? { ...gameState.pendingAction } : null,
+			tableControls: tableControls ? { ...tableControls } : null,
 		},
 		seatViews: players.map((player) => buildSeatView(player, communityCards, gameState)),
 	};

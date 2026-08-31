@@ -70,6 +70,10 @@ const PRESENCE_TTL = 60_000;
 // Presence is refreshed at most this often, so a 750ms poll does not mean a write every 750ms.
 const PRESENCE_WRITE_INTERVAL = 4_000;
 const allowedActionNames = new Set(["fold", "check", "call", "raise", "allin"]);
+const allowedCommands = new Set(["fastforward", "nextround"]);
+// Long enough to survive a slow state push, short enough that a stale press cannot fire into a
+// later hand.
+const COMMAND_TTL = 15_000;
 
 // Which sites may talk to this server. Anything not listed is refused, and from the browser that
 // looks like the game simply never syncing, so getting it wrong is worth making hard.
@@ -168,6 +172,10 @@ function createSeatSyncPayload(record, seatIndex) {
 		updatedAt: record.updatedAt,
 		schemaVersion: record.schemaVersion ?? SYNC_VIEW_SCHEMA_VERSION,
 	};
+}
+
+function getCommandKey(tableId) {
+	return `command:${tableId}`;
 }
 
 function getPresenceKey(tableId) {
@@ -270,6 +278,32 @@ function consumePendingAction(tableId, turnToken) {
 	return record.turnToken === turnToken ? record : null;
 }
 
+// Table-level commands: fast forward, deal the next round. Unlike a player's action these belong to
+// nobody's turn, so they carry no turn token. The table collects them on its next state push, which
+// it makes often while either button is live, so a press lands quickly.
+function savePendingCommand(tableId, command) {
+	storeSet(getCommandKey(tableId), { command, createdAt: Date.now() }, COMMAND_TTL);
+}
+
+function consumePendingCommand(tableId) {
+	const record = storeGet(getCommandKey(tableId));
+	if (!record) {
+		return null;
+	}
+	storeDelete(getCommandKey(tableId));
+	return record.command;
+}
+
+function handlePostCommand(data, origin) {
+	const tableId = data?.tableId || "default";
+	const command = typeof data?.command === "string" ? data.command.trim().toLowerCase() : "";
+	if (!allowedCommands.has(command)) {
+		return textResponse("Invalid command", 400, origin);
+	}
+	savePendingCommand(tableId, command);
+	return jsonResponse({ ok: true }, origin);
+}
+
 async function handlePostState(request, origin) {
 	let data;
 	try {
@@ -295,6 +329,7 @@ async function handlePostState(request, origin) {
 		// The host uses this to decide whether a seat's controls belong on the shared screen.
 		presentSeats,
 		seatsLastSeen: getSeatsLastSeen(seats),
+		command: consumePendingCommand(tableId),
 	}, origin);
 }
 
@@ -446,7 +481,10 @@ function routeRequest(request) {
 		return handleHealth(request.headers.get("origin"));
 	}
 
-	if (url.pathname !== "/state" && url.pathname !== "/action" && url.pathname !== "/table") {
+	if (
+		url.pathname !== "/state" && url.pathname !== "/action" &&
+		url.pathname !== "/table" && url.pathname !== "/command"
+	) {
 		return textResponse("Not found", 404, request.headers.get("origin"));
 	}
 
@@ -457,6 +495,15 @@ function routeRequest(request) {
 
 	if (request.method === "OPTIONS") {
 		return handleOptions(origin);
+	}
+
+	if (url.pathname === "/command") {
+		if (request.method !== "POST") {
+			return textResponse("Method not allowed", 405, origin);
+		}
+		return request.json()
+			.then((data) => handlePostCommand(data, origin))
+			.catch(() => textResponse("Invalid JSON", 400, origin));
 	}
 
 	if (url.pathname === "/table") {

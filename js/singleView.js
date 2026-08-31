@@ -18,13 +18,14 @@ Imports
 import {
 	configureViewSwitchLink,
 	createSeatActionControls,
+	createTableControls,
 	getSeatPendingAction,
 	setViewSwitchLinkVisible,
 	shouldShowSeatActionControls,
 } from "./shared/humanTurnController.js";
 import { getSeatView, getTableView } from "./shared/syncViewModel.js";
 import { initSound, initSoundButton, playTurnChime } from "./shared/sound.js";
-import { ACTION_ENDPOINT, STATE_ENDPOINT } from "./shared/syncConfig.js";
+import { ACTION_ENDPOINT, COMMAND_ENDPOINT, STATE_ENDPOINT } from "./shared/syncConfig.js";
 
 /* --------------------------------------------------------------------------------------------------
 Variables
@@ -83,6 +84,14 @@ function getInitialViewState() {
 
 const initialViewState = getInitialViewState();
 const seatIndexParam = initialViewState.seatIndex;
+const tableControls = createTableControls({
+	containerEl: document.getElementById("single-table-controls"),
+	fastForwardButton: document.getElementById("single-fast-forward-button"),
+	nextRoundButton: document.getElementById("single-next-round-button"),
+	tableId,
+	commandEndpoint: COMMAND_ENDPOINT,
+});
+
 const actionControls = createSeatActionControls({
 	tableId,
 	seatIndex: seatIndexParam,
@@ -112,6 +121,7 @@ function init() {
 	document.addEventListener("touchstart", function () {}, false);
 	document.addEventListener("visibilitychange", handleVisibilityChange);
 	actionControls.init();
+	tableControls.init();
 	configureViewSwitchLink(singleSwitchLink, "remoteTable.html", tableId, seatIndexParam);
 	clearSyncedDisplays();
 	applyParams();
@@ -119,6 +129,7 @@ function init() {
 	if (!tableId || seatIndexParam === null) {
 		setOnlineElementsVisible(false);
 		actionControls.hide();
+		tableControls.hide();
 		return;
 	}
 	pollState();
@@ -180,6 +191,7 @@ function setOnlineElementsVisible(isOnline) {
 		notificationsEl.classList.add("hidden");
 		setViewSwitchLinkVisible(singleSwitchLink, false);
 		actionControls.hide();
+		tableControls.hide();
 		clearSyncedDisplays();
 	}
 }
@@ -287,6 +299,7 @@ function applyRemoteState(payload) {
 		hasSyncedState = false;
 		setViewSwitchLinkVisible(singleSwitchLink, false);
 		actionControls.hide();
+		tableControls.hide();
 		clearSyncedDisplays();
 		return false;
 	}
@@ -303,6 +316,7 @@ function applyRemoteState(payload) {
 	renderHandStrength(seatView.handStrengthLabel || "");
 	renderWinProbability(seatView.winProbability, seatView.showWinProbability === true);
 	actionControls.render(seatView, pendingAction);
+	tableControls.render(tableView.tableControls);
 	setViewSwitchLinkVisible(singleSwitchLink, !showTurnControls);
 	return true;
 }

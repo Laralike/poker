@@ -10,9 +10,20 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.13.0";
+export const APP_VERSION = "1.14.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.14.0",
+		date: "2026-08-31",
+		title: "Fast Forward and Deal Next Round on your own screen",
+		notes: [
+			"Both buttons now appear on every player's own view, not just the shared table, so nobody has to switch windows to press them.",
+			"Fast Forward shows whenever only bots are left to act in the hand. Deal Next Round shows between hands, with the countdown on it.",
+			"Either button can be pressed by any player, and the table acts on it within a second or so.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.13.0",
 		date: "2026-08-31",

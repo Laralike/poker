@@ -31,3 +31,4 @@ export const STATE_ENDPOINT = `${SYNC_API_BASE_URL}/state`;
 export const ACTION_ENDPOINT = `${SYNC_API_BASE_URL}/action`;
 export const TABLE_ENDPOINT = `${SYNC_API_BASE_URL}/table`;
 export const HEALTH_ENDPOINT = `${SYNC_API_BASE_URL}/health`;
+export const COMMAND_ENDPOINT = `${SYNC_API_BASE_URL}/command`;

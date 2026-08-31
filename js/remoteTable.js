@@ -18,13 +18,14 @@ Imports
 import {
 	configureViewSwitchLink,
 	createSeatActionControls,
+	createTableControls,
 	getSeatPendingAction,
 	setViewSwitchLinkVisible,
 	shouldShowSeatActionControls,
 } from "./shared/humanTurnController.js";
 import { getSeatView, getTableView } from "./shared/syncViewModel.js";
 import { initSound, initSoundButton, playTurnChime } from "./shared/sound.js";
-import { ACTION_ENDPOINT, STATE_ENDPOINT } from "./shared/syncConfig.js";
+import { ACTION_ENDPOINT, COMMAND_ENDPOINT, STATE_ENDPOINT } from "./shared/syncConfig.js";
 import {
 	clearChipTransferAnimation,
 	clearRenderedSeat,
@@ -109,6 +110,14 @@ function parseOptionalInt(value) {
 	return Number.isNaN(parsed) ? null : parsed;
 }
 
+const tableControls = createTableControls({
+	containerEl: document.getElementById("table-controls"),
+	fastForwardButton: document.getElementById("fast-forward-button"),
+	nextRoundButton: document.getElementById("next-round-button"),
+	tableId,
+	commandEndpoint: COMMAND_ENDPOINT,
+});
+
 const actionControls = createSeatActionControls({
 	tableId,
 	seatIndex: seatIndexParam,
@@ -167,6 +176,7 @@ function applyRemoteState(payload) {
 	if (!tableView || !seatView || seatView.seatIndex !== seatIndexParam) {
 		setViewSwitchLinkVisible(remoteSwitchLink, false);
 		actionControls.hide();
+		tableControls.hide();
 		setNotification("Seat unavailable.");
 		clearChipTransferAnimation(tableRenderTarget);
 		seatRefs.forEach(clearRenderedSeat);
@@ -219,6 +229,7 @@ function applyRemoteState(payload) {
 	}
 	renderCommunityCards(communityCardSlots, tableView.communityCards);
 	actionControls.render(seatView, pendingAction);
+	tableControls.render(tableView.tableControls);
 	setViewSwitchLinkVisible(remoteSwitchLink, !showTurnControls);
 	renderNotifications(tableView.notifications);
 }
@@ -262,11 +273,13 @@ async function pollState() {
 		}
 		setViewSwitchLinkVisible(remoteSwitchLink, false);
 		actionControls.hide();
+		tableControls.hide();
 		setNotification("Table unavailable.");
 	} catch (error) {
 		console.warn("state fetch failed", error);
 		setViewSwitchLinkVisible(remoteSwitchLink, false);
 		actionControls.hide();
+		tableControls.hide();
 		setNotification("Connection lost.");
 	} finally {
 		isPolling = false;
@@ -302,12 +315,14 @@ function init() {
 	initSoundButton(soundButton);
 	document.addEventListener("visibilitychange", handleVisibilityChange);
 	actionControls.init();
+	tableControls.init();
 	configureViewSwitchLink(remoteSwitchLink, "hole-cards.html", tableId, seatIndexParam);
 	clearChipTransferAnimation(tableRenderTarget);
 	seatRefs.forEach(clearRenderedSeat);
 	setViewSwitchLinkVisible(remoteSwitchLink, false);
 	renderCommunityCards(communityCardSlots, []);
 	actionControls.hide();
+	tableControls.hide();
 
 	if (!tableId || seatIndexParam === null) {
 		setNotification("Missing table link.");

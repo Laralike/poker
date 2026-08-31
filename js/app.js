@@ -1755,21 +1755,58 @@ function getHumansWithChipsCount() {
 	return gameState.players.filter((p) => !p.isBot && p.chips > 0).length;
 }
 
-function updateFastForwardButton() {
-	if (!fastForwardButton) {
-		return;
-	}
+// Whether skipping ahead makes sense right now: a hand is running and no person left in it can act,
+// so everyone is waiting on bots. The players' own views ask the same question, so it lives here
+// rather than being re-derived and drifting.
+function canFastForwardNow() {
 	const humanPlayers = getHumanPlayers();
 	const noHumanCanAct = humanPlayers.length === 0 ||
 		humanPlayers.every((player) => player.folded);
-	const shouldShow = !SPEED_MODE &&
+	return !SPEED_MODE &&
 		hadHumansAtStart &&
 		gameState.handInProgress &&
 		!gameState.gameFinished &&
 		!handFastForwardActive &&
 		!autoplayToGameEnd &&
 		noHumanCanAct;
-	fastForwardButton.classList.toggle("hidden", !shouldShow);
+}
+
+function updateFastForwardButton() {
+	if (!fastForwardButton) {
+		return;
+	}
+	fastForwardButton.classList.toggle("hidden", !canFastForwardNow());
+}
+
+// The buttons that belong to the table rather than to a seat, described so every player's view can
+// offer them too instead of one person switching windows to press them.
+function getTableControls() {
+	const betweenHands = gameState.gameStarted &&
+		!gameState.handInProgress &&
+		!gameState.gameFinished;
+	return {
+		canFastForward: canFastForwardNow(),
+		canStartNextRound: betweenHands,
+		nextRoundSeconds: betweenHands && newRoundCountdownSeconds > 0 ? newRoundCountdownSeconds : null,
+	};
+}
+
+// Pressed from a player's own view. Guarded so a stale press cannot deal a hand that is already
+// running, or one that someone else has just dealt.
+function runTableCommand(command) {
+	if (command === "fastforward") {
+		if (canFastForwardNow()) {
+			logFlow("fast forward requested from a seat");
+			activateFastForward();
+		}
+		return;
+	}
+	if (command === "nextround") {
+		if (gameState.gameStarted && !gameState.handInProgress && !gameState.gameFinished) {
+			logFlow("next round requested from a seat");
+			startGame();
+		}
+	}
 }
 
 function resetRuntimeFastForward() {
@@ -1904,6 +1941,10 @@ seconds without anyone doing anything.
 ---------------------------------------------------------------------------------------------------*/
 
 const STATE_HEARTBEAT_INTERVAL = 5000;
+// A press of Fast Forward or Deal Next Round comes back on the next state push, so while either is
+// available the table checks in more often. Five seconds of nothing happening after a button press
+// feels broken.
+const ACTIVE_HEARTBEAT_INTERVAL = 1200;
 let stateHeartbeatTimer = null;
 
 function startStateSyncHeartbeat() {
@@ -1911,20 +1952,28 @@ function startStateSyncHeartbeat() {
 	if (!hasStateSyncEnabled()) {
 		return;
 	}
-	stateHeartbeatTimer = setInterval(() => {
+	const tick = () => {
 		if (!hasStateSyncEnabled()) {
 			stopStateSyncHeartbeat();
 			return;
 		}
 		queueStateSync(0);
-	}, STATE_HEARTBEAT_INTERVAL);
+		// Check in briskly only while there is a table button someone might be pressing; the rest of
+		// the time a slow pulse is enough to keep a restarted server topped up.
+		const controls = getTableControls();
+		const delay = (controls.canFastForward || controls.canStartNextRound)
+			? ACTIVE_HEARTBEAT_INTERVAL
+			: STATE_HEARTBEAT_INTERVAL;
+		stateHeartbeatTimer = setTimeout(tick, delay);
+	};
+	stateHeartbeatTimer = setTimeout(tick, ACTIVE_HEARTBEAT_INTERVAL);
 }
 
 function stopStateSyncHeartbeat() {
 	if (stateHeartbeatTimer === null) {
 		return;
 	}
-	clearInterval(stateHeartbeatTimer);
+	clearTimeout(stateHeartbeatTimer);
 	stateHeartbeatTimer = null;
 }
 
@@ -2072,7 +2121,7 @@ function isSeatPlayedRemotely(player) {
 async function sendTableState() {
 	const payload = {
 		tableId: tableId,
-		view: buildSyncView(gameState, notifArr.slice(0, MAX_ITEMS)),
+		view: buildSyncView(gameState, notifArr.slice(0, MAX_ITEMS), Date.now(), getTableControls()),
 	};
 
 	try {
@@ -2087,6 +2136,9 @@ async function sendTableState() {
 		const result = await res.json();
 		setPresentRemoteSeats(result?.presentSeats);
 		setSeatLastSeen(result?.seatsLastSeen);
+		if (typeof result?.command === "string") {
+			runTableCommand(result.command);
+		}
 	} catch (error) {
 		logFlow("state sync failed", error);
 		// Losing contact with the backend must not strand a seat on a device we can no longer hear
@@ -4080,7 +4132,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v8";
+const SERVICE_WORKER_VERSION = "2026-08-31-v9";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

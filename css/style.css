@@ -920,6 +920,24 @@ JOIN PAGE
 	min-width: 0;
 }
 
+/* Fast Forward and Deal Next Round, offered on every player's own view as well as the shared screen
+   so nobody has to switch windows to press them. */
+.table-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	width: 100%;
+}
+
+.table-controls button {
+	width: auto;
+	margin: 0;
+	padding: 0.45rem 1.1rem;
+	font-size: 0.95rem;
+}
+
 /* Stands in for a seat's action buttons on the shared screen while that seat plays from its own
    device, so private options are not laid out in front of the whole table. */
 .remote-turn-status {

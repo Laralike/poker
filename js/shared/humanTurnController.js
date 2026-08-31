@@ -43,6 +43,83 @@ export function getSeatPendingAction(tableView, seatIndex) {
 	return null;
 }
 
+// Fast Forward and Deal Next Round belong to the table, not to a seat, but they were only ever on
+// the shared screen -- so whoever was running the table had to keep switching windows to press them.
+// Both player views now offer the same two buttons, driven by what the table publishes.
+export function createTableControls({
+	containerEl,
+	fastForwardButton,
+	nextRoundButton,
+	tableId,
+	commandEndpoint,
+	onCommandError = null,
+}) {
+	let inFlight = false;
+
+	async function send(command) {
+		if (inFlight || !tableId) {
+			return;
+		}
+		inFlight = true;
+		fastForwardButton && (fastForwardButton.disabled = true);
+		nextRoundButton && (nextRoundButton.disabled = true);
+		try {
+			const res = await fetch(commandEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ tableId, command }),
+			});
+			if (!res.ok) {
+				throw new Error(`command failed with status ${res.status}`);
+			}
+		} catch (error) {
+			console.warn("table command failed", error);
+			onCommandError?.(error);
+		} finally {
+			inFlight = false;
+		}
+	}
+
+	function init() {
+		fastForwardButton?.addEventListener("click", () => send("fastforward"));
+		nextRoundButton?.addEventListener("click", () => send("nextround"));
+	}
+
+	function render(tableControls) {
+		if (!containerEl) {
+			return;
+		}
+
+		const canFastForward = tableControls?.canFastForward === true;
+		const canStartNextRound = tableControls?.canStartNextRound === true;
+		const seconds = tableControls?.nextRoundSeconds;
+
+		if (fastForwardButton) {
+			fastForwardButton.classList.toggle("hidden", !canFastForward);
+			// Re-enable once the table has acted, so the button is ready for the next hand.
+			if (canFastForward) {
+				fastForwardButton.disabled = false;
+			}
+		}
+		if (nextRoundButton) {
+			nextRoundButton.classList.toggle("hidden", !canStartNextRound);
+			nextRoundButton.textContent = Number.isFinite(seconds) && seconds > 0
+				? `Deal Next Round (${seconds})`
+				: "Deal Next Round";
+			if (canStartNextRound) {
+				nextRoundButton.disabled = false;
+			}
+		}
+		containerEl.classList.toggle("hidden", !canFastForward && !canStartNextRound);
+	}
+
+	function hide() {
+		containerEl?.classList.add("hidden");
+	}
+
+	return { init, render, hide };
+}
+
 export function configureViewSwitchLink(linkEl, targetPath, tableId, seatIndex) {
 	if (!linkEl || !tableId || seatIndex === null) {
 		return;
