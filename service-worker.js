@@ -50,6 +50,8 @@ const CORE_ASSETS = [
 	"./js/singleView.js",
 	"./js/serviceWorkerRegistration.js",
 	"./js/qr-creator.js",
+	"./join.html",
+	"./js/join.js",
 	"./js/shared/actionModel.js",
 	"./js/shared/currency.js",
 	"./js/shared/syncConfig.js",

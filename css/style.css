@@ -599,6 +599,161 @@ TABLE-MIDDLE
     margin: 0 2vmin;
 }
 
+/* The join address and code, shown on the shared screen so a laptop can join by typing rather than
+   needing a camera pointed at a QR code. */
+.join-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.4rem 0.6rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 999px;
+    background-color: var(--blue);
+    box-shadow: inset var(--shadow-pressed);
+    color: var(--blue-lightest);
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.join-banner-url,
+.join-banner-code {
+    color: var(--yellow);
+    /* People need to be able to select and read these out, unlike the rest of the table. */
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.join-banner-code {
+    letter-spacing: 0.1em;
+    font-size: 1.15rem;
+    color: var(--yellow-active);
+}
+
+/*
+-------------------------------------------------------------------
+JOIN PAGE
+-------------------------------------------------------------------
+*/
+
+.join-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex: 1;
+    width: 100%;
+    padding: 6vmin 4vmin 2rem;
+}
+
+.join-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 30rem;
+}
+
+.join-title {
+    margin: 0;
+    color: var(--font-color);
+    font-size: 1.6rem;
+    font-weight: normal;
+}
+
+.join-intro {
+    margin: 0;
+    color: var(--blue-lightest);
+}
+
+.join-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.join-label {
+    margin: 0;
+    color: var(--blue-lightest);
+    font-size: 0.9rem;
+}
+
+.join-input {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--blue);
+    box-shadow: inset var(--shadow-pressed);
+    color: var(--yellow);
+    font-family: inherit;
+    letter-spacing: 0.08em;
+    user-select: text;
+    -webkit-user-select: text;
+    /* Under 16px and iOS zooms in on focus and never zooms back out. */
+    font-size: max(1rem, 16px);
+}
+
+.join-button {
+    width: auto;
+    margin: 0;
+    align-self: flex-start;
+}
+
+.join-status {
+    margin: 0;
+    min-height: 1.2em;
+    color: var(--blue-lightest);
+    line-height: 1.35;
+}
+
+.join-status.join-error {
+    color: var(--yellow-active);
+}
+
+.join-seats,
+.join-view-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.join-seat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.join-seat {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.7rem 1.2rem;
+    text-align: left;
+}
+
+.join-seat-note {
+    font-size: 0.8rem;
+    opacity: 0.75;
+}
+
+.join-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: var(--blue-lightest);
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.join-radio strong {
+    color: var(--font-color);
+    font-weight: normal;
+}
+
 /* Who is playing used to be implied by which seats had names typed in. This says it out loud. */
 .table-setup {
     display: flex;

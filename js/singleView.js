@@ -219,9 +219,11 @@ function renderWinProbability(value, shouldShow) {
 // Constant polling is intentional.
 // Poker tables have bursty activity; 204 does not imply inactivity ahead.
 async function pollState() {
-	if (
-		!tableId || seatIndexParam === null || isPolling || document.visibilityState !== "visible"
-	) {
+	if (!tableId || seatIndexParam === null) {
+		return;
+	}
+	// Another run owns the loop; it will schedule the next tick when it finishes.
+	if (isPolling) {
 		return;
 	}
 	isPolling = true;
@@ -259,25 +261,23 @@ async function pollState() {
 	}
 }
 
-function schedulePoll() {
-	if (document.visibilityState !== "visible") {
-		pollTimeoutId = null;
-		return;
+function getPollInterval() {
+	return document.visibilityState === "visible" ? REFRESH_INTERVAL : BACKGROUND_REFRESH_INTERVAL;
+}
+
+function schedulePoll(delay = getPollInterval()) {
+	// Exactly one tick is ever pending. Leaking a second timer means two loops racing, which shows
+	// up as cancelled requests and a view that lurches between versions.
+	if (pollTimeoutId !== null) {
+		clearTimeout(pollTimeoutId);
 	}
-	pollTimeoutId = setTimeout(pollState, REFRESH_INTERVAL);
+	pollTimeoutId = setTimeout(pollState, delay);
 }
 
 function handleVisibilityChange() {
-	if (pollTimeoutId !== null) {
-		clearTimeout(pollTimeoutId);
-		pollTimeoutId = null;
-	}
-	if (document.visibilityState !== "visible") {
-		return;
-	}
-	if (!isPolling) {
-		pollState();
-	}
+	// Coming back to the tab should feel instant, and the seat needs to re-register straight away
+	// so the shared screen hands the controls back.
+	schedulePoll(document.visibilityState === "visible" ? 0 : getPollInterval());
 }
 
 function applyRemoteState(payload) {

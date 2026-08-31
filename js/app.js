@@ -107,6 +107,9 @@ const instructionsButton = document.querySelector("#instructions-button");
 const rotateIcons = document.querySelectorAll(".seat .rotate");
 const closeButtons = document.querySelectorAll(".close");
 const tableSetupEl = document.getElementById("table-setup");
+const joinBannerEl = document.getElementById("join-banner");
+const joinBannerUrlEl = document.getElementById("join-banner-url");
+const joinBannerCodeEl = document.getElementById("join-banner-code");
 const humansCountEl = document.getElementById("humans-count");
 const botsCountEl = document.getElementById("bots-count");
 const humansDecrementButton = document.getElementById("humans-decrement");
@@ -1926,6 +1929,25 @@ function initStateSyncForGame() {
 	syncTableUrlWithState();
 }
 
+// The QR codes are only useful to someone holding a phone that reads them. Showing the join address
+// and the code in plain text means a laptop can join by typing, which is what most people at a table
+// actually have to hand.
+function renderJoinBanner() {
+	if (!joinBannerEl) {
+		return;
+	}
+
+	if (!hasStateSyncEnabled()) {
+		joinBannerEl.classList.add("hidden");
+		return;
+	}
+
+	const joinUrl = createPageUrl("join.html");
+	joinBannerUrlEl.textContent = `${joinUrl.host}${joinUrl.pathname}`;
+	joinBannerCodeEl.textContent = tableId;
+	joinBannerEl.classList.remove("hidden");
+}
+
 function createTurnToken() {
 	return `${Date.now().toString(36)}${
 		Math.random().toString(36).slice(2, 8)
@@ -2445,6 +2467,7 @@ function startGame() {
 			closeAllOverlays();
 			gameState.gameStarted = true;
 			initStateSyncForGame();
+			renderJoinBanner();
 
 			preFlop();
 		} else {
@@ -3766,7 +3789,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v1";
+const SERVICE_WORKER_VERSION = "2026-08-31-v2";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

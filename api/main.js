@@ -1,4 +1,14 @@
-const kv = await Deno.openKv();
+// On Deno Deploy a KV database has to be provisioned and linked to the app before Deno.openKv()
+// works. Crashing at start-up when it is not gives a bare 500 with nothing to go on, so hold the
+// failure and report it properly through /health instead.
+let kv = null;
+let kvError = null;
+try {
+	kv = await Deno.openKv();
+} catch (error) {
+	kvError = error instanceof Error ? error.message : String(error);
+	console.error("Could not open Deno KV", error);
+}
 
 const SYNC_VIEW_SCHEMA_VERSION = 7;
 const devOrigin = "http://127.0.0.1:5500";
@@ -305,13 +315,65 @@ async function handleGetAction(url, origin) {
 	return jsonResponse({ action: record, presentSeats }, origin);
 }
 
+// Joining from a laptop means typing a code, which means something has to answer "what seats does
+// this table have?" without handing over anybody's cards. This returns names and seat numbers only:
+// exactly what is already on the shared screen, and nothing that is not.
+async function handleGetTable(url, origin) {
+	const tableId = url.searchParams.get("tableId")?.trim() || "";
+	if (!tableId) {
+		return textResponse("Missing tableId", 400, origin);
+	}
+
+	const record = await getState(tableId);
+	if (!record) {
+		return textResponse("Not found", 404, origin);
+	}
+
+	const playersPublic = Array.isArray(record.view?.table?.playersPublic)
+		? record.view.table.playersPublic
+		: [];
+	const joinedSeats = new Set(getLiveSeatIndexes(await getSeatPresence(tableId)));
+
+	return jsonResponse({
+		tableId,
+		seats: playersPublic.map((seat) => ({
+			seatIndex: seat.seatIndex,
+			name: seat.name,
+			isBot: seat.isBot === true,
+			joined: joinedSeats.has(seat.seatIndex),
+		})),
+		updatedAt: record.updatedAt,
+	}, origin);
+}
+
+// Something to open in a browser to check the server is actually working, before wondering why the
+// game will not sync. Reports the two things that are easy to get wrong: whether the database is
+// attached, and which sites are allowed to talk to this server.
+function handleHealth(origin) {
+	const ok = kv !== null;
+	return jsonResponse({
+		ok,
+		database: ok ? "connected" : "not connected",
+		databaseError: kvError,
+		allowedOrigins: [...allowedOrigins],
+		hint: ok
+			? "Server is ready. If the game still will not sync, check that the site you play on is " +
+				"listed in allowedOrigins above, exactly, including https:// and no trailing slash."
+			: "Provision a Deno KV database and link it to this app, then redeploy.",
+	}, origin, ok ? 200 : 503);
+}
+
 function handleOptions(origin) {
 	return emptyResponse(origin);
 }
 
 function routeRequest(request) {
 	const url = new URL(request.url);
-	if (url.pathname !== "/state" && url.pathname !== "/action") {
+	if (url.pathname === "/health") {
+		return handleHealth(request.headers.get("origin"));
+	}
+
+	if (url.pathname !== "/state" && url.pathname !== "/action" && url.pathname !== "/table") {
 		return textResponse("Not found", 404, request.headers.get("origin"));
 	}
 
@@ -322,6 +384,21 @@ function routeRequest(request) {
 
 	if (request.method === "OPTIONS") {
 		return handleOptions(origin);
+	}
+
+	if (kv === null) {
+		return textResponse(
+			"No database attached to this server. Open /health for details.",
+			503,
+			origin,
+		);
+	}
+
+	if (url.pathname === "/table") {
+		if (request.method === "GET") {
+			return handleGetTable(url, origin);
+		}
+		return textResponse("Method not allowed", 405, origin);
 	}
 
 	if (url.pathname === "/state") {

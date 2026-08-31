@@ -151,6 +151,9 @@ export function buildPublicPlayerView(player, communityCards, gameState, now = D
 		seatIndex: player.seatIndex,
 		seatSlot: player.seatSlot,
 		name: player.name,
+		// Public already: the table shows who is a bot. The join page needs it to offer only the
+		// seats a person can actually take.
+		isBot: player.isBot === true,
 		chips: player.chips,
 		roundBet: player.roundBet,
 		folded: player.folded,

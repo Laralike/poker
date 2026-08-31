@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-title" content="Poker">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<meta name="theme-color" content="#2e426b" />
+
+	<title>Join a table</title>
+
+	<link rel="apple-touch-icon" href="icons/180x180.png" />
+	<link rel="icon" href="icons/favicon.png" type="image/png" sizes="32x32">
+	<link rel="icon" href="icons/poker-chip.svg" type="image/svg+xml">
+	<link rel="manifest" href="manifest.json">
+	<link rel="stylesheet" href="css/style.css">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Secular+One&display=swap" rel="stylesheet">
+</head>
+
+<body id="join-page">
+	<main class="join-main">
+		<div class="join-card">
+			<h1 class="join-title">Join a table</h1>
+			<p class="join-intro">Type the code shown on the shared screen.</p>
+
+			<form id="join-form" class="join-form" autocomplete="off">
+				<label class="join-label" for="table-code">Table code</label>
+				<input type="text" id="table-code" class="join-input" name="table-code"
+					inputmode="latin" autocapitalize="none" autocorrect="off" spellcheck="false"
+					maxlength="24" placeholder="e.g. fiuuiz">
+				<button type="submit" id="join-lookup-button" class="join-button">Find table</button>
+			</form>
+
+			<p id="join-status" class="join-status" role="status"></p>
+
+			<div id="join-seats" class="join-seats hidden">
+				<p class="join-label">Which one are you?</p>
+				<div id="join-seat-list" class="join-seat-list"></div>
+			</div>
+
+			<div id="join-view-choice" class="join-view-choice hidden">
+				<p class="join-label">Open as</p>
+				<label class="join-radio">
+					<input type="radio" name="join-view" value="table" checked>
+					<span><strong>Full table</strong> — see the whole game and your own cards.
+						Best on a laptop.</span>
+				</label>
+				<label class="join-radio">
+					<input type="radio" name="join-view" value="cards">
+					<span><strong>Just my cards</strong> — a compact view. Best on a small
+						phone.</span>
+				</label>
+			</div>
+		</div>
+	</main>
+	<footer>
+		<div id="credit">
+			<a href="https://github.com/Tehes/poker" class="attribution">Based on Poker by Tehes</a>
+			<span class="attribution-note">Modified, unofficial version</span>
+		</div>
+	</footer>
+	<script type="module" src="./js/join.js"></script>
+</body>
+
+</html>

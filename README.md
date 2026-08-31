@@ -33,6 +33,16 @@ Fixes to problems found while playing:
   nothing to warn that choosing two or more people hides *everybody's* cards until each of them
   joins on their own phone. There are now People / Bots counters, and a line telling you what the
   current choice actually means, including a warning when multiplayer cannot work yet.
+- **Join from a laptop by typing a code.** The only way in was a per-seat QR code, which assumes
+  everyone is holding a phone that reads them. The shared screen now shows a plain join address and
+  a short table code, and there is a `join.html` page where you type the code, pick your name from
+  the list, and choose whether to open the full table (good on a laptop — you see the whole game as
+  well as your own cards) or the compact cards-only view (good on a phone). The QR codes still work.
+- **Fixed a seat view that could sit on "Loading table…" for ever.** If the page first loaded while
+  its tab was in the background — exactly what happens when you open a join link in a new tab — the
+  update loop stopped on the first tick and never restarted. A backgrounded tab now keeps checking
+  in slowly rather than stopping, so it also keeps hold of its seat instead of handing the buttons
+  back to the shared screen the moment you look at another window.
 - **Amounts are in pounds.**
 - **Removed the upstream analytics tag**, which was bound to the original author's account.
   The `globalThis.umami?.track(...)` calls in `js/app.js` are optional and simply do nothing;
@@ -48,14 +58,21 @@ The table itself is static files: serve them from anywhere (GitHub Pages works).
 Multiplayer sync needs the small backend in `api/main.js`, and **it must be your own deployment** —
 the upstream one only accepts requests from the upstream site.
 
-1. Deploy `api/main.js` to a Deno Deploy project.
-2. Set `ALLOWED_ORIGINS` on that project to wherever you serve these pages from, e.g.
-   `https://yourname.github.io`. Comma-separate several. `http://127.0.0.1:5500` is always allowed
-   for local development.
-3. Put your project's URL in `SYNC_API_BASE_URL` in
+1. On [Deno Deploy](https://deno.com/deploy), create an app from this repository. It is a **dynamic**
+   app, not a static one, and its entrypoint is `api/main.js`.
+2. Provision a **Deno KV** database and link it to the app. On the current Deno Deploy this is a
+   separate step; without it `Deno.openKv()` fails and every request returns 503.
+3. Set the environment variable `ALLOWED_ORIGINS` to wherever you serve these pages from, e.g.
+   `https://yourname.github.io` — exactly, with `https://` and no trailing slash. Comma-separate
+   several. `http://127.0.0.1:5500` is always allowed for local development.
+4. Put your app's URL in `SYNC_API_BASE_URL` in
    [`js/shared/syncConfig.js`](js/shared/syncConfig.js).
 
-Without steps 1–3, solo and spectator games still work; multiplayer will not.
+Open `https://your-app-url/health` in a browser to check steps 1–3: it reports whether the database
+is attached and which origins are allowed, which are the two things that are easy to get wrong.
+
+Without all four steps, solo and spectator games still work; multiplayer will not, and the setup
+panel on the table will say so.
 
 ---
 

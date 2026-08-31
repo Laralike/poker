@@ -10,9 +10,21 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.7.0";
+export const APP_VERSION = "1.8.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.8.0",
+		date: "2026-08-31",
+		title: "Join from a laptop with a code",
+		notes: [
+			"The shared table now shows a join address and a short table code, so players can join by typing rather than needing a phone that reads QR codes.",
+			"A new join page takes the code, lists the seats, and lets you pick your own.",
+			"You can choose the full table view, which shows the whole game alongside your own cards and suits a laptop, or the compact cards-only view for a phone.",
+			"Fixed a player view that could stay stuck on \"Loading table\" when it was opened in a background tab.",
+		],
+		estimated: false,
+	},
 	{
 		version: "1.7.0",
 		date: "2026-08-31",
