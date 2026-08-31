@@ -1,0 +1,13 @@
+{
+	"name": "poker-table-server",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Sync server for the poker table. Runs on plain Node; no database needed.",
+	"type": "module",
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"start": "node api/main.js"
+	}
+}

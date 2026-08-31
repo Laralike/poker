@@ -1,14 +1,61 @@
-// On Deno Deploy a KV database has to be provisioned and linked to the app before Deno.openKv()
-// works. Crashing at start-up when it is not gives a bare 500 with nothing to go on, so hold the
-// failure and report it properly through /health instead.
-let kv = null;
-let kvError = null;
-try {
-	kv = await Deno.openKv();
-} catch (error) {
-	kvError = error instanceof Error ? error.message : String(error);
-	console.error("Could not open Deno KV", error);
+/* ==================================================================================================
+The table server
+================================================================================================== */
+
+// Runs on plain Node or on Deno, and keeps everything it needs in memory. There is deliberately no
+// database: a table is a few kilobytes that matters for the length of one evening, and requiring a
+// hosted database was the single fiddliest step in getting a copy of this game running.
+//
+// Losing the memory is survivable by design. The shared table re-sends the whole state after every
+// action, so a restarted server refills within a second, and the seat views notice a table they can
+// no longer match and ask for a full copy. A restart mid-game costs a few seconds, not the game.
+
+const runtimeDeno = globalThis.Deno;
+
+function readEnv(name) {
+	if (runtimeDeno?.env?.get) {
+		return runtimeDeno.env.get(name);
+	}
+	return globalThis.process?.env?.[name];
 }
+
+/* --------------------------------------------------------------------------------------------------
+In-memory store with expiry
+---------------------------------------------------------------------------------------------------*/
+
+const store = new Map();
+
+function storeGet(key) {
+	const entry = store.get(key);
+	if (!entry) {
+		return null;
+	}
+	if (entry.expiresAt <= Date.now()) {
+		store.delete(key);
+		return null;
+	}
+	return entry.value;
+}
+
+function storeSet(key, value, ttlMs) {
+	store.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+function storeDelete(key) {
+	store.delete(key);
+}
+
+// Nothing here is big, but a long-lived process should not accumulate finished tables for ever.
+function sweepExpired() {
+	const now = Date.now();
+	for (const [key, entry] of store) {
+		if (entry.expiresAt <= now) {
+			store.delete(key);
+		}
+	}
+}
+
+setInterval(sweepExpired, 60_000);
 
 const SYNC_VIEW_SCHEMA_VERSION = 7;
 const devOrigin = "http://127.0.0.1:5500";
@@ -22,11 +69,16 @@ const PRESENCE_TTL = 15_000;
 const PRESENCE_WRITE_INTERVAL = 4_000;
 const allowedActionNames = new Set(["fold", "check", "call", "raise", "allin"]);
 
-// Set ALLOWED_ORIGINS (comma separated) to wherever this copy of the table is hosted. Without it a
-// fork served from a different domain gets a CORS rejection on every sync call, and multiplayer
-// silently stops working with no visible error.
+// Which sites may talk to this server. Anything not listed is refused, and from the browser that
+// looks like the game simply never syncing, so getting it wrong is worth making hard.
+//
+// Set it here, in the file, so a copy works as soon as it is deployed with nothing else to
+// configure. The ALLOWED_ORIGINS environment variable overrides this if you would rather not commit
+// the value, or need to add one temporarily.
+const DEFAULT_ALLOWED_ORIGINS = "https://laralike.github.io";
+
 function readAllowedOrigins() {
-	const configured = Deno.env.get("ALLOWED_ORIGINS") ?? "";
+	const configured = readEnv("ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS;
 	const origins = configured
 		.split(",")
 		.map((origin) => origin.trim())
@@ -86,11 +138,11 @@ function parseInteger(value) {
 }
 
 function getTableKey(tableId) {
-	return ["table", tableId];
+	return `table:${tableId}`;
 }
 
 function getActionKey(tableId) {
-	return ["action", tableId];
+	return `action:${tableId}`;
 }
 
 function findSeatView(view, seatIndex) {
@@ -116,7 +168,7 @@ function createSeatSyncPayload(record, seatIndex) {
 }
 
 function getPresenceKey(tableId) {
-	return ["presence", tableId];
+	return `presence:${tableId}`;
 }
 
 /* --------------------------------------------------------------------------------------------------
@@ -128,14 +180,13 @@ on the shared screen, which is how private decisions ended up in front of the wh
 poll refreshes a heartbeat here, and the host reads it back when it pushes state.
 ---------------------------------------------------------------------------------------------------*/
 
-async function getSeatPresence(tableId) {
-	const entry = await kv.get(getPresenceKey(tableId));
-	const seats = entry.value?.seats;
+function getSeatPresence(tableId) {
+	const seats = storeGet(getPresenceKey(tableId))?.seats;
 	return (seats && typeof seats === "object") ? seats : {};
 }
 
-async function touchSeatPresence(tableId, seatIndex) {
-	const seats = await getSeatPresence(tableId);
+function touchSeatPresence(tableId, seatIndex) {
+	const seats = getSeatPresence(tableId);
 	const now = Date.now();
 	const lastSeen = Number(seats[seatIndex]);
 
@@ -146,7 +197,7 @@ async function touchSeatPresence(tableId, seatIndex) {
 	}
 
 	const nextSeats = { ...seats, [seatIndex]: now };
-	await kv.set(getPresenceKey(tableId), { seats: nextSeats }, { expireIn: STATE_TTL });
+	storeSet(getPresenceKey(tableId), { seats: nextSeats }, STATE_TTL);
 	return nextSeats;
 }
 
@@ -161,13 +212,12 @@ function getLiveSeatIndexes(seats, now = Date.now()) {
 		.filter((seatIndex) => Number.isInteger(seatIndex));
 }
 
-async function getState(tableId) {
-	const entry = await kv.get(getTableKey(tableId));
-	return entry.value ?? null;
+function getState(tableId) {
+	return storeGet(getTableKey(tableId));
 }
 
-async function saveState(tableId, payload) {
-	const current = await getState(tableId);
+function saveState(tableId, payload) {
+	const current = getState(tableId);
 	const version = (current?.version ?? 0) + 1;
 	const record = {
 		// The backend persists the already-prepared view model.
@@ -177,11 +227,11 @@ async function saveState(tableId, payload) {
 		version,
 		schemaVersion: SYNC_VIEW_SCHEMA_VERSION,
 	};
-	await kv.set(getTableKey(tableId), record, { expireIn: STATE_TTL });
+	storeSet(getTableKey(tableId), record, STATE_TTL);
 	return record;
 }
 
-async function savePendingAction(tableId, actionRequest) {
+function savePendingAction(tableId, actionRequest) {
 	const record = {
 		seatIndex: actionRequest.seatIndex,
 		turnToken: actionRequest.turnToken,
@@ -189,23 +239,18 @@ async function savePendingAction(tableId, actionRequest) {
 		amount: actionRequest.amount ?? null,
 		createdAt: new Date().toISOString(),
 	};
-	await kv.set(getActionKey(tableId), record, { expireIn: ACTION_TTL });
+	storeSet(getActionKey(tableId), record, ACTION_TTL);
 	return record;
 }
 
-async function consumePendingAction(tableId, turnToken) {
+function consumePendingAction(tableId, turnToken) {
 	const key = getActionKey(tableId);
-	const entry = await kv.get(key);
-	const record = entry.value ?? null;
+	const record = storeGet(key);
 	if (!record) {
 		return null;
 	}
-	if (record.turnToken !== turnToken) {
-		await kv.delete(key);
-		return null;
-	}
-	await kv.delete(key);
-	return record;
+	storeDelete(key);
+	return record.turnToken === turnToken ? record : null;
 }
 
 async function handlePostState(request, origin) {
@@ -222,8 +267,8 @@ async function handlePostState(request, origin) {
 	}
 
 	const tableId = data.tableId || "default";
-	const record = await saveState(tableId, { view });
-	const presentSeats = getLiveSeatIndexes(await getSeatPresence(tableId));
+	const record = saveState(tableId, { view });
+	const presentSeats = getLiveSeatIndexes(getSeatPresence(tableId));
 	return jsonResponse({
 		ok: true,
 		version: record.version,
@@ -234,7 +279,7 @@ async function handlePostState(request, origin) {
 	}, origin);
 }
 
-async function handleGetState(url, origin) {
+function handleGetState(url, origin) {
 	const tableId = url.searchParams.get("tableId") || "default";
 	const seatIndex = parseInteger(url.searchParams.get("seatIndex"));
 	const sinceParam = url.searchParams.get("sinceVersion");
@@ -244,9 +289,9 @@ async function handleGetState(url, origin) {
 		return textResponse("Missing seatIndex", 400, origin);
 	}
 
-	await touchSeatPresence(tableId, seatIndex);
+	touchSeatPresence(tableId, seatIndex);
 
-	const record = await getState(tableId);
+	const record = getState(tableId);
 	if (!record) {
 		return textResponse("Not found", 404, origin);
 	}
@@ -290,7 +335,7 @@ async function handlePostAction(request, origin) {
 		return textResponse("Missing amount", 400, origin);
 	}
 
-	await savePendingAction(tableId, {
+	savePendingAction(tableId, {
 		seatIndex,
 		turnToken,
 		action,
@@ -303,36 +348,34 @@ async function handlePostAction(request, origin) {
 // which it needs to know whether that seat is being played from its own device. Answering with
 // presence here costs nothing extra; the host is not pushing state while it waits, so this is its
 // only chance to find out.
-async function handleGetAction(url, origin) {
+function handleGetAction(url, origin) {
 	const tableId = url.searchParams.get("tableId") || "default";
 	const turnToken = url.searchParams.get("turnToken")?.trim() || "";
 	if (!turnToken) {
 		return textResponse("Missing turnToken", 400, origin);
 	}
 
-	const record = await consumePendingAction(tableId, turnToken);
-	const presentSeats = getLiveSeatIndexes(await getSeatPresence(tableId));
+	const record = consumePendingAction(tableId, turnToken);
+	const presentSeats = getLiveSeatIndexes(getSeatPresence(tableId));
 	return jsonResponse({ action: record, presentSeats }, origin);
 }
 
 // Joining from a laptop means typing a code, which means something has to answer "what seats does
 // this table have?" without handing over anybody's cards. This returns names and seat numbers only:
 // exactly what is already on the shared screen, and nothing that is not.
-async function handleGetTable(url, origin) {
+function handleGetTable(url, origin) {
 	const tableId = url.searchParams.get("tableId")?.trim() || "";
 	if (!tableId) {
 		return textResponse("Missing tableId", 400, origin);
 	}
 
-	const record = await getState(tableId);
+	const record = getState(tableId);
 	if (!record) {
 		return textResponse("Not found", 404, origin);
 	}
 
-	const playersPublic = Array.isArray(record.view?.table?.playersPublic)
-		? record.view.table.playersPublic
-		: [];
-	const joinedSeats = new Set(getLiveSeatIndexes(await getSeatPresence(tableId)));
+	const playersPublic = Array.isArray(record.view?.table?.playersPublic) ? record.view.table.playersPublic : [];
+	const joinedSeats = new Set(getLiveSeatIndexes(getSeatPresence(tableId)));
 
 	return jsonResponse({
 		tableId,
@@ -350,17 +393,14 @@ async function handleGetTable(url, origin) {
 // game will not sync. Reports the two things that are easy to get wrong: whether the database is
 // attached, and which sites are allowed to talk to this server.
 function handleHealth(origin) {
-	const ok = kv !== null;
 	return jsonResponse({
-		ok,
-		database: ok ? "connected" : "not connected",
-		databaseError: kvError,
+		ok: true,
+		runtime: runtimeDeno ? "deno" : "node",
+		tablesInMemory: store.size,
 		allowedOrigins: [...allowedOrigins],
-		hint: ok
-			? "Server is ready. If the game still will not sync, check that the site you play on is " +
-				"listed in allowedOrigins above, exactly, including https:// and no trailing slash."
-			: "Provision a Deno KV database and link it to this app, then redeploy.",
-	}, origin, ok ? 200 : 503);
+		hint: "Server is running. If the game will not sync, check that the site you play on " +
+			"appears in allowedOrigins above, exactly, including https:// and with no trailing slash.",
+	}, origin);
 }
 
 function handleOptions(origin) {
@@ -384,14 +424,6 @@ function routeRequest(request) {
 
 	if (request.method === "OPTIONS") {
 		return handleOptions(origin);
-	}
-
-	if (kv === null) {
-		return textResponse(
-			"No database attached to this server. Open /health for details.",
-			503,
-			origin,
-		);
 	}
 
 	if (url.pathname === "/table") {
@@ -420,11 +452,45 @@ function routeRequest(request) {
 	return textResponse("Method not allowed", 405, origin);
 }
 
-Deno.serve(async (request) => {
+/* --------------------------------------------------------------------------------------------------
+Bootstrap
+
+Deno serves web-standard Requests directly. Node needs a small adapter, because its http module
+predates them. Same handler either way, so there is only ever one implementation of the rules.
+---------------------------------------------------------------------------------------------------*/
+
+async function handleRequest(request) {
 	try {
 		return await routeRequest(request);
 	} catch (error) {
 		console.error("Unexpected error", error);
 		return textResponse("Internal error", 500, request.headers.get("origin"));
 	}
-});
+}
+
+const port = Number.parseInt(readEnv("PORT") ?? "", 10) || 8000;
+
+if (runtimeDeno?.serve) {
+	runtimeDeno.serve({ port }, handleRequest);
+} else {
+	const { createServer } = await import("node:http");
+
+	createServer(async (req, res) => {
+		const url = `http://${req.headers.host ?? "localhost"}${req.url}`;
+		const body = (req.method === "GET" || req.method === "HEAD") ? undefined : await new Promise((resolve) => {
+			const chunks = [];
+			req.on("data", (chunk) => chunks.push(chunk));
+			req.on("end", () => resolve(Buffer.concat(chunks)));
+		});
+
+		const response = await handleRequest(
+			new Request(url, { method: req.method, headers: req.headers, body }),
+		);
+
+		res.writeHead(response.status, Object.fromEntries(response.headers));
+		const text = await response.arrayBuffer();
+		res.end(Buffer.from(text));
+	}).listen(port, () => {
+		console.log(`Table server listening on port ${port}`);
+	});
+}

@@ -55,24 +55,31 @@ Fixes to problems found while playing:
 
 The table itself is static files: serve them from anywhere (GitHub Pages works).
 
-Multiplayer sync needs the small backend in `api/main.js`, and **it must be your own deployment** —
-the upstream one only accepts requests from the upstream site.
+Multiplayer sync needs the small server in `api/main.js`. It has to be **your own** — the upstream
+one only accepts requests from the upstream site.
 
-1. On [Deno Deploy](https://deno.com/deploy), create an app from this repository. It is a **dynamic**
-   app, not a static one, and its entrypoint is `api/main.js`.
-2. Provision a **Deno KV** database and link it to the app. On the current Deno Deploy this is a
-   separate step; without it `Deno.openKv()` fails and every request returns 503.
-3. Set the environment variable `ALLOWED_ORIGINS` to wherever you serve these pages from, e.g.
-   `https://yourname.github.io` — exactly, with `https://` and no trailing slash. Comma-separate
-   several. `http://127.0.0.1:5500` is always allowed for local development.
-4. Put your app's URL in `SYNC_API_BASE_URL` in
+It is a plain Node program with no database and no build step. It keeps tables in memory, which is
+all they need: a table matters for one evening, and the shared screen re-sends its whole state after
+every action, so a restarted server refills within a second.
+
+1. On a host that runs a Node process from a Git repository ([Render](https://render.com) has a free
+   tier with no card required), create a **Web Service** from this repository.
+2. Runtime **Node**. Build command `npm install`, start command `npm start`. Nothing else.
+3. Put the service's URL in `SYNC_API_BASE_URL` in
    [`js/shared/syncConfig.js`](js/shared/syncConfig.js).
 
-Open `https://your-app-url/health` in a browser to check steps 1–3: it reports whether the database
-is attached and which origins are allowed, which are the two things that are easy to get wrong.
+Then set who may talk to it: `DEFAULT_ALLOWED_ORIGINS` at the top of `api/main.js`, or the
+`ALLOWED_ORIGINS` environment variable if you would rather not commit it. Use the exact origin you
+serve the pages from — `https://yourname.github.io`, with no trailing slash and no path.
 
-Without all four steps, solo and spectator games still work; multiplayer will not, and the setup
-panel on the table will say so.
+Open `https://your-service-url/health` in a browser to check: it reports which origins are allowed,
+which is the thing most likely to be wrong.
+
+Note that free hosting usually sleeps when idle. The first request after a quiet spell can take up
+to a minute; after that it is responsive, and constant play keeps it awake.
+
+Without these steps, solo and spectator games still work; multiplayer will not, and the setup panel
+on the table says so.
 
 ---
 
