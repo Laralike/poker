@@ -1,0 +1,9 @@
+{
+	"name": "poker-browser-checks",
+	"private": true,
+	"type": "module",
+	"description": "Browser checks that drive real pages against a real table server. Kept apart from the app, which needs no Node packages at all.",
+	"devDependencies": {
+		"playwright": "^1.62.1"
+	}
+}

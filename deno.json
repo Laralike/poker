@@ -1,5 +1,7 @@
 {
+	"//": "test/browser holds Node-side browser checks with their own package.json, so deno leaves them alone.",
 	"fmt": {
+		"exclude": ["test/browser"],
 		"useTabs": true,
 		"indentWidth": 4,
 		"lineWidth": 120,
@@ -17,6 +19,7 @@
 		"speedmode:100": "deno run --allow-env=CHROME_BIN --allow-net=127.0.0.1,localhost --allow-read=. --allow-write=.,/tmp --allow-run ./scripts/speedmodeBatch.js --runs=100"
 	},
 	"lint": {
+		"exclude": ["test/browser"],
 		"rules": {
 			"tags": [
 				"recommended"
