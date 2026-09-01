@@ -939,6 +939,29 @@ function handlePageLifecycleSave() {
 	trackUnfinishedExit();
 }
 
+// A game is live from the moment Start is pressed until somebody is crowned champion.
+function isGameLive() {
+	return gameState.gameStarted === true && gameState.gameFinished !== true;
+}
+
+// Only a table with a single person on it can be picked up again after a reload. Anywhere else,
+// closing or refreshing the shared table ends the game for everyone who joined it, so make the
+// browser ask first rather than letting a stray Ctrl+R bin the night.
+function wouldLoseGameOnUnload() {
+	return isGameLive() && !hasExactlyOneHumanPlayer(gameState.players);
+}
+
+function handleBeforeUnload(event) {
+	handlePageLifecycleSave();
+	if (!wouldLoseGameOnUnload()) {
+		return undefined;
+	}
+	event.preventDefault();
+	// Browsers show their own wording; a non-empty value is what asks the question.
+	event.returnValue = "";
+	return "";
+}
+
 /* --------------------------------------------------------------------------------------------------
 Low-Level Utilities And Formatting Helpers
 ---------------------------------------------------------------------------------------------------*/
@@ -4079,11 +4102,7 @@ function init() {
 		}
 	}, false);
 	globalThis.addEventListener("pagehide", handlePageLifecycleSave, false);
-	globalThis.addEventListener(
-		"beforeunload",
-		handlePageLifecycleSave,
-		false,
-	);
+	globalThis.addEventListener("beforeunload", handleBeforeUnload, false);
 	document.addEventListener(
 		"visibilitychange",
 		() => {
@@ -4138,11 +4157,14 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-09-01-v11";
+const SERVICE_WORKER_VERSION = "2026-09-01-v12";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({
 	useServiceWorker: USE_SERVICE_WORKER,
 	serviceWorkerVersion: SERVICE_WORKER_VERSION,
 	autoReloadOnUpdate: AUTO_RELOAD_ON_SW_UPDATE,
+	// A table with more than one person on it is never saved, so reloading it mid-game loses the
+	// game for everyone who joined. Take the new version once the game is over instead.
+	canReloadNow: () => !isGameLive(),
 });

@@ -10,9 +10,18 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.16.0";
+export const APP_VERSION = "1.17.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.17.0",
+		date: "2026-09-01",
+		title: "Stop losing the game to a refresh",
+		notes: [
+			"A new version arriving no longer refreshes the shared table in the middle of a game. It waits until the game is over, because a refresh ends the game for everyone who joined.",
+			"Closing or refreshing the shared table during a game now asks for confirmation first, rather than binning the game without warning.",
+		],
+	},
 	{
 		version: "1.16.0",
 		date: "2026-09-01",

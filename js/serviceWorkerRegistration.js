@@ -127,10 +127,14 @@ async function unregisterServiceWorkers(projectScope, projectSlug, swCachePrefix
 	}
 }
 
+// How often to re-check whether a held-back reload can finally happen.
+const PENDING_RELOAD_CHECK_INTERVAL = 3000;
+
 export function initServiceWorker({
 	useServiceWorker,
 	serviceWorkerVersion,
 	autoReloadOnUpdate,
+	canReloadNow = null,
 }) {
 	if (!("serviceWorker" in navigator)) {
 		return;
@@ -144,6 +148,7 @@ export function initServiceWorker({
 	const swCachePrefix = `${projectSlug}-cache-`;
 	const hadControllerAtStart = !!navigator.serviceWorker.controller;
 	let hasHandledControllerChange = false;
+	let pendingReloadTimer = null;
 
 	navigator.serviceWorker.addEventListener("controllerchange", () => {
 		if (!hadControllerAtStart) {
@@ -155,11 +160,27 @@ export function initServiceWorker({
 
 		hasHandledControllerChange = true;
 
-		if (autoReloadOnUpdate) {
-			globalThis.location.reload();
-		} else {
+		if (!autoReloadOnUpdate) {
 			console.log("Service Worker updated; auto reload disabled.");
+			return;
 		}
+
+		// Reloading throws away a game in progress, and on the shared table that takes everybody
+		// else's game with it. A new version is never worth that, so wait until the table is idle.
+		if (typeof canReloadNow !== "function" || canReloadNow() === true) {
+			globalThis.location.reload();
+			return;
+		}
+
+		console.log("Service Worker updated; holding the reload until the game is over.");
+		pendingReloadTimer = setInterval(() => {
+			if (canReloadNow() !== true) {
+				return;
+			}
+			clearInterval(pendingReloadTimer);
+			pendingReloadTimer = null;
+			globalThis.location.reload();
+		}, PENDING_RELOAD_CHECK_INTERVAL);
 	});
 
 	globalThis.addEventListener("DOMContentLoaded", async () => {
@@ -177,4 +198,13 @@ export function initServiceWorker({
 			await unregisterServiceWorkers(projectScope, projectSlug, swCachePrefix);
 		}
 	});
+
+	// Lets a caller (or a test) drop a reload that is still waiting for the game to finish.
+	return function cancelPendingReload() {
+		if (pendingReloadTimer === null) {
+			return;
+		}
+		clearInterval(pendingReloadTimer);
+		pendingReloadTimer = null;
+	};
 }
