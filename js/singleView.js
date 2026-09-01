@@ -109,6 +109,11 @@ const actionControls = createSeatActionControls({
 	sliderOutput: singleSliderOutput,
 	decrementButton: singleAmountDecrementButton,
 	incrementButton: singleAmountIncrementButton,
+	onActionError: () =>
+		renderNotifications(["The table has not picked that up yet — press again if nothing happens."]),
+	// Their own move, confirmed on their own screen the instant they press. Whatever the connection
+	// is doing, nobody should be left wondering whether the button worked.
+	onActionSubmitted: (message) => renderNotifications([message]),
 	onNewTurn: () => playTurnChime(),
 });
 

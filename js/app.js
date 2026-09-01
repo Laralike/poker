@@ -223,8 +223,10 @@ const notifArr = [];
 const pendingNotif = [];
 let isNotifProcessing = false;
 let notifTimer = null;
-const DEFAULT_NOTIF_INTERVAL = 450;
+const DEFAULT_NOTIF_INTERVAL = 500;
 let NOTIF_INTERVAL = DEFAULT_NOTIF_INTERVAL;
+// However far behind the log falls, never flash messages past faster than a person can read.
+const MIN_NOTIF_INTERVAL = 160;
 const FAST_FORWARD_NOTIF_INTERVAL = 0;
 const DEFAULT_ACTION_LABEL_DURATION = 1800;
 let ACTION_LABEL_DURATION = DEFAULT_ACTION_LABEL_DURATION;
@@ -1567,6 +1569,9 @@ function tickNewRoundCountdown() {
 		return;
 	}
 	showNewRoundCountdown(newRoundCountdownSeconds);
+	// Everyone is looking at the same countdown on different screens, so push each tick out rather
+	// than leaving the seat views showing whatever number happened to be in the last state they got.
+	queueStateSync(0);
 	newRoundCountdownTimer = setTimeout(
 		tickNewRoundCountdown,
 		NEW_ROUND_COUNTDOWN_INTERVAL,
@@ -1580,6 +1585,7 @@ function startNewRoundCountdown() {
 	}
 	newRoundCountdownSeconds = NEW_ROUND_COUNTDOWN_SECONDS;
 	showNewRoundCountdown(newRoundCountdownSeconds);
+	queueStateSync(0);
 	if (newRoundControls) {
 		newRoundControls.classList.add("new-round-countdown-active");
 	}
@@ -1616,6 +1622,13 @@ function getNotifInterval() {
 	}
 	if (isTurboPlaybackActive()) {
 		return FAST_FORWARD_NOTIF_INTERVAL;
+	}
+	// Announcements are the running commentary on the hand, so they must never end up describing
+	// something that happened several moves ago. If any have stacked up, close the gap by showing
+	// them faster rather than letting the log drift further behind the table.
+	if (pendingNotif.length > 0) {
+		const caughtUp = NOTIF_INTERVAL / (pendingNotif.length + 1);
+		return Math.max(MIN_NOTIF_INTERVAL, Math.round(caughtUp));
 	}
 	return NOTIF_INTERVAL;
 }
@@ -1764,6 +1777,12 @@ function showNextNotif() {
 	isNotifProcessing = true;
 	deliverNotification(pendingNotif.shift());
 	scheduleNextNotif();
+}
+
+// How long the table still needs to finish saying what has already happened. Bots wait this out on
+// top of their own thinking time, so play never gets ahead of the commentary describing it.
+function getPendingNotificationDelay() {
+	return pendingNotif.length * getNotifInterval();
 }
 
 function clearActionLabels() {
@@ -1970,6 +1989,9 @@ const STATE_HEARTBEAT_INTERVAL = 5000;
 // available the table checks in more often. Five seconds of nothing happening after a button press
 // feels broken.
 const ACTIVE_HEARTBEAT_INTERVAL = 1200;
+// A seat's Fast Forward or Deal Next Round only reaches the table on the reply to a state push.
+// While either button is live, check in often enough that pressing it feels like it did something.
+const CONTROL_HEARTBEAT_INTERVAL = 400;
 let stateHeartbeatTimer = null;
 
 function startStateSyncHeartbeat() {
@@ -1987,8 +2009,8 @@ function startStateSyncHeartbeat() {
 		// the time a slow pulse is enough to keep a restarted server topped up.
 		const controls = getTableControls();
 		const delay = (controls.canFastForward || controls.canStartNextRound)
-			? ACTIVE_HEARTBEAT_INTERVAL
-			: STATE_HEARTBEAT_INTERVAL;
+			? CONTROL_HEARTBEAT_INTERVAL
+			: (isRemoteTurnPending() ? ACTIVE_HEARTBEAT_INTERVAL : STATE_HEARTBEAT_INTERVAL);
 		stateHeartbeatTimer = setTimeout(tick, delay);
 	};
 	stateHeartbeatTimer = setTimeout(tick, ACTIVE_HEARTBEAT_INTERVAL);
@@ -2141,6 +2163,18 @@ function isSeatPlayedRemotely(player) {
 		!!player &&
 		!player.isBot &&
 		presentRemoteSeats.has(player.seatIndex);
+}
+
+// True while the table is waiting on a move from somebody playing on their own device. Their action
+// comes back on the reply to a state push, so the pulse stays brisk for as long as that is true.
+function isRemoteTurnPending() {
+	if (gameState.activeSeatIndex === null) {
+		return false;
+	}
+	const active = gameState.players.find(
+		(player) => player.seatIndex === gameState.activeSeatIndex,
+	);
+	return isSeatPlayedRemotely(active);
 }
 
 async function sendTableState() {
@@ -3220,7 +3254,7 @@ function runBotTurn({ player, cycles, nextPlayer }) {
 			logPrefix: "bot",
 			advanceReason: "bot",
 		});
-	}, pickBotThinkingTime(actionRequest));
+	}, pickBotThinkingTime(actionRequest, getPendingNotificationDelay()));
 }
 
 function startBettingRound(options = {}) {
@@ -4140,6 +4174,14 @@ globalThis.poker = {
 	get handInProgress() {
 		return gameState.handInProgress;
 	},
+	// How many announcements are still waiting to be shown. Anything above zero for long means the
+	// table log has fallen behind the play, which is what makes the pacing feel unhinged.
+	get pendingNotifications() {
+		return pendingNotif.length;
+	},
+	get decisionsResolved() {
+		return gameState.nextDecisionId;
+	},
 	get reveals() {
 		return gameState.allPlayers.map((player) => ({
 			name: player.name,
@@ -4157,7 +4199,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-09-01-v12";
+const SERVICE_WORKER_VERSION = "2026-09-01-v13";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

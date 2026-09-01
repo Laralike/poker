@@ -72,14 +72,18 @@ import { getPlayerActionState } from "./shared/actionModel.js";
 export let BOT_ACTION_DELAY = 1400;
 const FAST_FORWARD_BOT_ACTION_DELAY = 140;
 // How long a bot appears to think before its move lands, in milliseconds, by what it decided to do.
-// People are not metronomes: a fold comes back almost at once, a raise takes a beat while they pick
-// a size. Each pause is drawn from its range at random, so a row of bots never ticks like a clock.
+// People are not metronomes: a fold comes back quickly, a raise takes a beat while they pick a size.
+// Each pause is drawn from its range at random, so a row of bots never ticks like a clock.
+//
+// The floor matters as much as the spread. Watching the game is the point, so the quickest possible
+// move still has to be slow enough to read the seat it came from and the line in the table log
+// describing it. Below about three quarters of a second a fold is just a flicker.
 const BOT_THINKING_RANGES = {
-	fold: [400, 1100],
-	check: [500, 1500],
-	call: [900, 2400],
-	raise: [1800, 4200],
-	allin: [2200, 5000],
+	fold: [900, 1700],
+	check: [900, 1900],
+	call: [1400, 2700],
+	raise: [2100, 4000],
+	allin: [2400, 4400],
 };
 // Now and then somebody genuinely tanks over a decision. Never on a fold, which is the one action
 // real players fire off without thinking.
@@ -200,14 +204,19 @@ function randomInRange([min, max]) {
 }
 
 // Pick how long this particular move should take to appear.
-export function pickBotThinkingTime(actionRequest) {
+//
+// backlogDelay is however long the table still needs to finish announcing what has already
+// happened. Adding it means a bot never acts on top of a move the log has not caught up to yet,
+// which is what made the pacing feel unhinged: the game running ahead of its own commentary.
+export function pickBotThinkingTime(actionRequest, backlogDelay = 0) {
 	const action = actionRequest?.action ?? "call";
 	const range = BOT_THINKING_RANGES[action] ?? BOT_THINKING_RANGES.call;
 	let delay = randomInRange(range);
 	if (action !== "fold" && Math.random() < BOT_TANK_CHANCE) {
 		delay += randomInRange(BOT_TANK_EXTRA_RANGE);
 	}
-	return Math.round(delay);
+	const waitingOnTheLog = Number.isFinite(backlogDelay) ? Math.max(0, backlogDelay) : 0;
+	return Math.round(delay + waitingOnTheLog);
 }
 
 function getBotActionDelay() {

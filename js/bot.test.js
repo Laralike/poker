@@ -66,9 +66,15 @@ Deno.test("pickBotThinkingTime never returns the same pause every time", () => {
 	assert(distinct.size > 10, `expected varied pauses, got ${distinct.size} distinct values`);
 });
 
-Deno.test("pickBotThinkingTime keeps folds snappy and every pause finite", () => {
+Deno.test("pickBotThinkingTime keeps every pause readable and finite", () => {
 	for (const value of sampleThinkingTimes("fold")) {
-		assert(value >= 400 && value <= 1100, `fold pause out of range: ${value}`);
+		assert(value >= 900 && value <= 1700, `fold pause out of range: ${value}`);
+	}
+	// Nothing may be quicker than a person can follow, however keen the bot is to fold.
+	for (const action of ["fold", "check", "call", "raise", "allin"]) {
+		for (const value of sampleThinkingTimes(action, 100)) {
+			assert(value >= 900, `${action} pause too quick to watch: ${value}`);
+		}
 	}
 	for (const action of ["check", "call", "raise", "allin"]) {
 		for (const value of sampleThinkingTimes(action, 100)) {
@@ -81,4 +87,20 @@ Deno.test("pickBotThinkingTime falls back to a sane pause for unknown actions", 
 	const value = pickBotThinkingTime({ action: "bet" });
 	assert(value > 0 && value <= 8000, `fallback pause out of range: ${value}`);
 	assert(pickBotThinkingTime(null) > 0, "a missing decision should still pause");
+});
+
+Deno.test("pickBotThinkingTime waits for the table to finish talking", () => {
+	// With announcements still queued, a bot must not act on top of them.
+	for (const value of Array.from({ length: 200 }, () => pickBotThinkingTime({ action: "fold" }, 1500))) {
+		assert(value >= 900 + 1500, `bot acted before the log caught up: ${value}`);
+	}
+	const withoutBacklog = pickBotThinkingTime({ action: "fold" }, 0);
+	assert(withoutBacklog < 900 + 1500, "a clear log should not add any wait");
+});
+
+Deno.test("pickBotThinkingTime ignores a nonsense backlog", () => {
+	for (const bad of [undefined, null, NaN, -500, "soon"]) {
+		const value = pickBotThinkingTime({ action: "check" }, bad);
+		assert(value >= 900 && value <= 8000, `backlog ${bad} produced ${value}`);
+	}
 });

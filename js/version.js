@@ -10,9 +10,21 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.17.0";
+export const APP_VERSION = "1.18.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.18.0",
+		date: "2026-09-01",
+		title: "Timing that keeps up with itself",
+		notes: [
+			"Your own move now shows on your own screen the instant you press the button, instead of waiting for the table to answer. Only the table's reaction takes any time.",
+			"The table log can no longer fall behind the play. A bot waits for the table to finish announcing the last move before making its own, and if messages ever do stack up they catch up rather than drifting further behind.",
+			"Nothing happens too quickly to watch any more: the fastest possible fold takes about nine tenths of a second rather than four tenths.",
+			"The countdown to the next hand now shows the same number on every screen. It used to sit frozen on players' own views while the shared table counted down.",
+			"Deal Next Round and Fast Forward pressed on a player's own laptop now reach the table in well under a second.",
+		],
+	},
 	{
 		version: "1.17.0",
 		date: "2026-09-01",

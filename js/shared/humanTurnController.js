@@ -18,6 +18,7 @@ MODULE BOUNDARY: Shared Human Turn Controller
 // player means. Everything handed to actionModel is a STAKE. Convert at the boundary, never in the
 // middle.
 
+import { formatMoney } from "./currency.js";
 import {
 	clampActionAmount,
 	fromTotalAmount,
@@ -796,6 +797,7 @@ export function createSeatActionControls({
 	decrementButton = null,
 	incrementButton = null,
 	onActionError = null,
+	onActionSubmitted = null,
 	onNewTurn = null,
 }) {
 	// Synced seat views only submit actions to the host/backend.
@@ -842,10 +844,40 @@ export function createSeatActionControls({
 		}, submitRecoveryDelay);
 	}
 
+	// What the player just did, said back to them in the same numbers the button showed. There is no
+	// point making somebody wait for a round trip to find out what they themselves pressed.
+	function describeOwnAction(actionRequest, actionState) {
+		if (actionRequest?.action === "fold") {
+			return "You folded.";
+		}
+		const stake = actionRequest?.amount ?? 0;
+		if (!actionState) {
+			return "Sent to the table.";
+		}
+		const total = formatMoney(toTotalAmount(stake, actionState));
+		if (stake === 0) {
+			return "You checked.";
+		}
+		if (stake === actionState.maxAmount) {
+			return `You went all-in for ${total}.`;
+		}
+		if (stake === actionState.needToCall) {
+			return `You called ${total}.`;
+		}
+		return `You raised to ${total}.`;
+	}
+
 	async function submitActionRequest(actionRequest) {
 		if (!currentPendingAction || !tableId || seatIndex === null || isSubmittingAction) {
 			return;
 		}
+
+		// Say so on this screen first, before anything touches the network. A person's own move must
+		// never appear to hang while it travels; only the table's reaction to it can take time.
+		onActionSubmitted?.(
+			describeOwnAction(actionRequest, currentPendingAction),
+			actionRequest,
+		);
 
 		isSubmittingAction = true;
 		turnActionUi.setEnabled(false);
