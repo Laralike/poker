@@ -10,9 +10,21 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.15.0";
+export const APP_VERSION = "1.16.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.16.0",
+		date: "2026-09-01",
+		title: "Bots that think like people",
+		notes: [
+			"Bots no longer take the same pause every time. A fold comes back almost instantly, a call takes a moment, and a raise takes longer while they weigh up the size.",
+			"Every pause is drawn at random from a range, so a lap of the table stops sounding like a metronome.",
+			"Occasionally a bot properly tanks over a big decision, the way a real player does.",
+			"Whoever is to act now has a gently pulsing dot beside their name, on the shared table and on every player's own view. If it is still beating, the table has not frozen.",
+			"A player's name stays on their seat while they think, instead of being replaced.",
+		],
+	},
 	{
 		version: "1.15.0",
 		date: "2026-08-31",

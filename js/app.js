@@ -20,7 +20,13 @@ MODULE BOUNDARY: Main Table Runtime
 Imports
 ---------------------------------------------------------------------------------------------------*/
 
-import { chooseBotAction, enqueueBotAction, normalizeBotActionRequest, setBotPlaybackFast } from "./bot.js";
+import {
+	chooseBotAction,
+	enqueueBotAction,
+	normalizeBotActionRequest,
+	pickBotThinkingTime,
+	setBotPlaybackFast,
+} from "./bot.js";
 import {
 	advanceDealer,
 	calculateWinProbabilities,
@@ -1196,14 +1202,6 @@ function renderPlayerChipStacks(playerList = gameState.players) {
 
 function renderPlayerTotal(player) {
 	renderPlayerSeat(player);
-}
-
-function setPlayerSeatName(player, text) {
-	const nameEl = getSeatRef(player)?.nameEl ?? null;
-	if (!nameEl) {
-		return;
-	}
-	nameEl.textContent = text;
 }
 
 function showPlayerQr(player, card1, card2) {
@@ -3171,11 +3169,15 @@ function runBotTurn({ player, cycles, nextPlayer }) {
 	humanTurnController.hide();
 	clearPlayerActionLabel(player);
 	clearSeatActionVisualState(getSeatRef(player));
-	setPlayerSeatName(player, "thinking …");
+
+	// Snapshot before the bot commits to a line, so a reload mid-pause replays the turn cleanly.
+	saveCurrentGameSnapshot();
+	// Decide now and pause afterwards, rather than pausing and then deciding. How long the pause
+	// runs depends on what was decided, which is what stops the table feeling metronomic.
+	const decision = chooseBotAction(player, gameState);
+	const actionRequest = normalizeBotActionRequest(decision);
 
 	enqueueBotAction(() => {
-		const decision = chooseBotAction(player, gameState);
-		const actionRequest = normalizeBotActionRequest(decision);
 		let resolvedAction = applyTurnAction(player, actionRequest);
 		if (!resolvedAction) {
 			logFlow("bot action fallback", {
@@ -3195,7 +3197,7 @@ function runBotTurn({ player, cycles, nextPlayer }) {
 			logPrefix: "bot",
 			advanceReason: "bot",
 		});
-	});
+	}, pickBotThinkingTime(actionRequest));
 }
 
 function startBettingRound(options = {}) {
@@ -3329,12 +3331,12 @@ function startBettingRound(options = {}) {
 		// --- Bot Branch --------------------------------------------------------------
 		// If this is a bot, choose an action based on hand strength
 		if (player.isBot) {
+			// runBotTurn snapshots itself, before the bot decides.
 			runBotTurn({
 				player,
 				cycles,
 				nextPlayer,
 			});
-			saveCurrentGameSnapshot();
 			return;
 		}
 
@@ -4136,7 +4138,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-08-31-v10";
+const SERVICE_WORKER_VERSION = "2026-09-01-v11";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

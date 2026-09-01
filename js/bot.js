@@ -68,11 +68,23 @@ import { getPlayerActionState } from "./shared/actionModel.js";
    Configuration
 ========================== */
 // Configuration constants
-// Delay in milliseconds between enqueued bot actions
-// A pause long enough to follow what a bot did, without four of them turning one orbit into a
-// minute of waiting. Watching the bots play is part of the point, so this is not zero.
+// Fallback pause in milliseconds for a queued bot action that did not say how long it wanted.
 export let BOT_ACTION_DELAY = 1400;
 const FAST_FORWARD_BOT_ACTION_DELAY = 140;
+// How long a bot appears to think before its move lands, in milliseconds, by what it decided to do.
+// People are not metronomes: a fold comes back almost at once, a raise takes a beat while they pick
+// a size. Each pause is drawn from its range at random, so a row of bots never ticks like a clock.
+const BOT_THINKING_RANGES = {
+	fold: [400, 1100],
+	check: [500, 1500],
+	call: [900, 2400],
+	raise: [1800, 4200],
+	allin: [2200, 5000],
+};
+// Now and then somebody genuinely tanks over a decision. Never on a fold, which is the one action
+// real players fire off without thinking.
+const BOT_TANK_CHANCE = 0.12;
+const BOT_TANK_EXTRA_RANGE = [1200, 2600];
 const RANK_ORDER = "23456789TJQKA";
 
 // Enable verbose logging of bot decisions
@@ -183,6 +195,21 @@ let processingBotActions = false;
 let botActionTimer = null;
 let runtimeBotPlaybackFast = false;
 
+function randomInRange([min, max]) {
+	return min + Math.random() * (max - min);
+}
+
+// Pick how long this particular move should take to appear.
+export function pickBotThinkingTime(actionRequest) {
+	const action = actionRequest?.action ?? "call";
+	const range = BOT_THINKING_RANGES[action] ?? BOT_THINKING_RANGES.call;
+	let delay = randomInRange(range);
+	if (action !== "fold" && Math.random() < BOT_TANK_CHANCE) {
+		delay += randomInRange(BOT_TANK_EXTRA_RANGE);
+	}
+	return Math.round(delay);
+}
+
 function getBotActionDelay() {
 	if (SPEED_MODE) {
 		return 0;
@@ -190,7 +217,8 @@ function getBotActionDelay() {
 	if (runtimeBotPlaybackFast) {
 		return FAST_FORWARD_BOT_ACTION_DELAY;
 	}
-	return BOT_ACTION_DELAY;
+	const next = botActionQueue[0];
+	return typeof next?.delay === "number" ? next.delay : BOT_ACTION_DELAY;
 }
 
 /* ===========================
@@ -221,8 +249,8 @@ export function setBotPlaybackFast(enabled) {
 }
 
 // Task queue management: enqueue bot actions for delayed execution
-export function enqueueBotAction(fn) {
-	botActionQueue.push(fn);
+export function enqueueBotAction(fn, delay) {
+	botActionQueue.push({ fn, delay });
 	if (!processingBotActions) {
 		processingBotActions = true;
 	}
@@ -258,7 +286,7 @@ function processBotQueue() {
 		processingBotActions = false;
 		return;
 	}
-	const fn = botActionQueue.shift();
+	const { fn } = botActionQueue.shift();
 	fn();
 	if (botActionQueue.length > 0) {
 		scheduleBotQueue();
