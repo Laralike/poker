@@ -43,6 +43,7 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_champion.mjs`     | A six-bot game left running: does it ever stall, and does the log keep up with the play?                                                                           |
 | `t_terminates.mjs`   | Do whole games actually finish? Five games in the app's own speed mode.                                                                                            |
 | `t_allin.mjs`        | All-ins and side pots driven from people's laptops — and are chips conserved, with none created or destroyed?                                                      |
+| `t_flicker.mjs`      | Is the board thrown away and redrawn when nothing has changed? Counts card elements rebuilt while the board is still.                                              |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
 `harness.mjs` builds the table the others share: a static server, a table server, a browser, a game with N humans and M
@@ -59,3 +60,4 @@ Recorded on this machine, so treat them as a baseline to compare against rather 
 - Table log behind the play: **under 7% of samples, never more than 3 messages**.
 - Four-handed: **0** occasions where two people could act at once.
 - Chips conserved through all-ins: **exactly**, every time.
+- Community card elements rebuilt while the board is unchanged: **0** (82 in 12 seconds before v1.19.0).
