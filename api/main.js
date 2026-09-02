@@ -268,14 +268,26 @@ function savePendingAction(tableId, actionRequest) {
 	return record;
 }
 
+// Take the waiting move only if it belongs to the turn being asked about.
+//
+// This used to delete whatever it found before checking, which quietly destroyed people's moves as
+// soon as a second person was playing. The table polls this every few hundred milliseconds for the
+// whole of a turn, so when the action passes from one player to the next there is a moment where a
+// poll still carrying the previous turn's token is in flight. If the next player has already sent
+// their move, that poll would read it, delete it, and hand back nothing because the tokens did not
+// match. Their move was gone, and they were told the table had not picked it up.
+//
+// A move that is not ours is left exactly where it is, for the poll it does belong to. Anything
+// genuinely stale is displaced by the next move written to the same slot, or expires on its own,
+// and can never be applied because it is only ever returned to a matching token.
 function consumePendingAction(tableId, turnToken) {
 	const key = getActionKey(tableId);
 	const record = storeGet(key);
-	if (!record) {
+	if (!record || record.turnToken !== turnToken) {
 		return null;
 	}
 	storeDelete(key);
-	return record.turnToken === turnToken ? record : null;
+	return record;
 }
 
 // Table-level commands: fast forward, deal the next round. Unlike a player's action these belong to

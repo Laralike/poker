@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.18.0";
+export const APP_VERSION = "1.19.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.19.0",
+		date: "2026-09-02",
+		title: "Two people can play",
+		notes: [
+			"Fixed the bug that made a second person's moves vanish. The table checks for a waiting move several times a second, and as the action passed from one player to the next it could pick up the next player's move, throw it away, and report that nothing had arrived — which is why the table froze and why one player kept being told their move had not been picked up.",
+			"This only ever happened with two or more people playing on their own devices, which is why one person against bots was flawless.",
+			"The community cards no longer flicker. Every card was being thrown away and redrawn several times a second even when nothing had changed; now a card is only redrawn when it actually changes.",
+		],
+	},
 	{
 		version: "1.18.0",
 		date: "2026-09-01",

@@ -361,21 +361,42 @@ export function renderChipStacks(playerList = []) {
 	});
 }
 
+// Rebuilding a card slot throws its image away and makes the browser fetch, decode and paint a new
+// one. The seat views redraw several times a second, so doing that unconditionally makes the board
+// visibly flicker -- worst on the card dealt most recently, whose image is least likely to still be
+// warm. Leave a slot alone unless the card sitting in it has actually changed.
 export function renderCommunityCards(cardSlots, cardCodes = []) {
 	cardSlots.forEach((slot, index) => {
 		const cardCode = cardCodes[index];
+		const currentImage = slot.querySelector("img");
+		const currentCode = currentImage?.dataset.cardCode ?? null;
+
 		if (!cardCode) {
-			slot.innerHTML = "";
+			if (currentImage) {
+				slot.replaceChildren();
+			}
 			return;
 		}
-		slot.innerHTML = `<img src="cards/${cardCode}.svg">`;
+		if (currentCode === cardCode) {
+			return;
+		}
+
+		const image = document.createElement("img");
+		image.src = `cards/${cardCode}.svg`;
+		image.dataset.cardCode = cardCode;
+		slot.replaceChildren(image);
 	});
 }
 
+// Same reasoning as the board: only touch src when the card behind it has changed, so a redraw that
+// changes nothing costs nothing.
 export function renderSeatCards(cardEls, cardCodes = []) {
 	cardEls.forEach((cardEl, index) => {
 		const cardCode = cardCodes[index];
-		cardEl.src = cardCode ? `cards/${cardCode}.svg` : "cards/1B.svg";
+		const nextSrc = cardCode ? `cards/${cardCode}.svg` : "cards/1B.svg";
+		if (cardEl.getAttribute("src") !== nextSrc) {
+			cardEl.setAttribute("src", nextSrc);
+		}
 	});
 }
 
