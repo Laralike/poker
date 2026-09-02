@@ -40,11 +40,18 @@ async function stopServer(child) {
 	await child.status;
 }
 
-async function postAction(tableId, seatIndex, turnToken, action) {
+// A raise has to carry an amount; the server rejects one without, and rightly so.
+async function postAction(tableId, seatIndex, turnToken, action, amount = null) {
 	const res = await fetch(`${BASE}/action`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "Origin": "http://127.0.0.1:5500" },
-		body: JSON.stringify({ tableId, seatIndex, turnToken, action, amount: null }),
+		body: JSON.stringify({
+			tableId,
+			seatIndex,
+			turnToken,
+			action,
+			amount: action === "raise" && amount === null ? 40 : amount,
+		}),
 	});
 	const body = await res.text();
 	if (!res.ok) {
@@ -126,6 +133,37 @@ Deno.test("many stray polls cannot starve a waiting move", async () => {
 		const mine = await pollAction(table, "turn-mine");
 		if (mine === null) {
 			throw new Error("30 stray polls destroyed the waiting move");
+		}
+	} finally {
+		await stopServer(child);
+	}
+});
+
+Deno.test("a late copy of an old move cannot overwrite the live one", async () => {
+	const child = await startServer();
+	try {
+		const table = "overwritetable";
+		// Louise's move, for her turn.
+		await postAction(table, 0, "turn-louise", "call");
+		// The table takes it and plays it.
+		const hers = await pollAction(table, "turn-louise");
+		if (hers === null) {
+			throw new Error("her move was not delivered");
+		}
+
+		// The action passes to Tyler, who sends his move.
+		await postAction(table, 2, "turn-tyler", "raise");
+
+		// Now a duplicate of Louise's earlier move turns up late — a double press, or a retry
+		// underneath her on a flaky link. It must not displace Tyler's.
+		await postAction(table, 0, "turn-louise", "call");
+
+		const his = await pollAction(table, "turn-tyler");
+		if (his === null) {
+			throw new Error("a late copy of an earlier move displaced the live one");
+		}
+		if (his.seatIndex !== 2 || his.action !== "raise") {
+			throw new Error(`the wrong move came back: ${JSON.stringify(his)}`);
 		}
 	} finally {
 		await stopServer(child);

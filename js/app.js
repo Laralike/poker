@@ -4182,6 +4182,12 @@ globalThis.poker = {
 	get decisionsResolved() {
 		return gameState.nextDecisionId;
 	},
+	// True while chips are sliding from the pot to a winner. During that animation a winner's stack
+	// has already been credited while the pot has not yet been cleared, so the two briefly overlap
+	// and any check that chips add up has to stand aside until it finishes.
+	get chipTransferActive() {
+		return getChipTransferRemainingDuration(gameState.chipTransfer) > 0;
+	},
 	get reveals() {
 		return gameState.allPlayers.map((player) => ({
 			name: player.name,
@@ -4199,7 +4205,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-09-02-v14";
+const SERVICE_WORKER_VERSION = "2026-09-02-v15";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

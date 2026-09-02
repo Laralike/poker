@@ -10,9 +10,18 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.19.0";
+export const APP_VERSION = "1.20.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.20.0",
+		date: "2026-09-02",
+		title: "A move can no longer be lost",
+		notes: [
+			"Fixed a second way a player's move could be destroyed: pressing twice, or a connection quietly retrying, could send a copy of an earlier move that landed after the action had moved on and wiped out the next player's move.",
+			"Moves are now filed under the turn they belong to, so two players' moves cannot touch each other at all.",
+		],
+	},
 	{
 		version: "1.19.0",
 		date: "2026-09-02",

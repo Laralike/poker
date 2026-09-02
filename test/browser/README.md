@@ -43,6 +43,7 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_champion.mjs`     | A six-bot game left running: does it ever stall, and does the log keep up with the play?                                                                           |
 | `t_terminates.mjs`   | Do whole games actually finish? Five games in the app's own speed mode.                                                                                            |
 | `t_allin.mjs`        | All-ins and side pots driven from people's laptops — and are chips conserved, with none created or destroyed?                                                      |
+| `t_chaos.mjs [seed] [humans] [secs] [drop]` | Impatient players on a hostile connection, with a monitor asserting things that must NEVER be true. See the note below on what it does and does not catch. |
 | `t_flicker.mjs`      | Is the board thrown away and redrawn when nothing has changed? Counts card elements rebuilt while the board is still.                                              |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
@@ -61,3 +62,29 @@ Recorded on this machine, so treat them as a baseline to compare against rather 
 - Four-handed: **0** occasions where two people could act at once.
 - Chips conserved through all-ins: **exactly**, every time.
 - Community card elements rebuilt while the board is unchanged: **0** (82 in 12 seconds before v1.19.0).
+
+
+## What each layer of checking is for, and what it is not
+
+Being straight about this matters, because the polite version of these checks is what let a real
+bug reach a real game.
+
+**`deno test` (rules and protocol).** Fast, deterministic, and the only layer that reliably catches
+a known race. The four tests in `api/main.test.js` model the exact interleaving of two players'
+moves and fail every time against the code that shipped the bug. If you find a race, pin it here
+first — a browser check will only find it sometimes.
+
+**`t_chaos.mjs` (unknown problems).** Impatient players, jittered and duplicated requests, and a
+monitor sampling every 150ms for things that must never be true: chips conserved, one actor at a
+time, nobody seeing another's cards while it is their turn, no lost-move warning, no stall, no page
+errors. This is for finding what nobody thought to look for.
+
+Measured honestly: run against the known handover bug, it came back clean at 2 humans over 25s and
+at 4 humans over 150s. It generates roughly one move every five to eight seconds, which is not
+enough handovers to hit a window that is only open for a fraction of a second. Treat a clean chaos
+run as weak evidence, not proof. It is worth running long and over several seeds.
+
+**The scripted checks (`t_latency`, `t_bigtable`, `t_allin`, and the rest).** Each answers one
+specific question well. None of them race anything, because each drives one seat at a time and
+waits politely for the result. That is exactly the blind spot the chaos and protocol layers exist
+to cover.

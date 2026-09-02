@@ -148,8 +148,14 @@ function getTableKey(tableId) {
 	return `table:${tableId}`;
 }
 
-function getActionKey(tableId) {
-	return `action:${tableId}`;
+// One slot per turn, not one per table. A single shared slot meant any later write displaced
+// whatever was in it, so a duplicated or delayed copy of an earlier move -- an impatient second
+// press, or a retry underneath a flaky connection -- could land after the action had moved on and
+// wipe out the move belonging to the player whose turn it now was. Keying by the turn means moves
+// from different turns cannot touch each other at all. Old ones are never read, because they are
+// only ever fetched by their own turn's token, and they expire on their own.
+function getActionKey(tableId, turnToken) {
+	return `action:${tableId}:${turnToken}`;
 }
 
 function findSeatView(view, seatIndex) {
@@ -264,7 +270,7 @@ function savePendingAction(tableId, actionRequest) {
 		amount: actionRequest.amount ?? null,
 		createdAt: new Date().toISOString(),
 	};
-	storeSet(getActionKey(tableId), record, ACTION_TTL);
+	storeSet(getActionKey(tableId, actionRequest.turnToken), record, ACTION_TTL);
 	return record;
 }
 
@@ -281,9 +287,9 @@ function savePendingAction(tableId, actionRequest) {
 // genuinely stale is displaced by the next move written to the same slot, or expires on its own,
 // and can never be applied because it is only ever returned to a matching token.
 function consumePendingAction(tableId, turnToken) {
-	const key = getActionKey(tableId);
+	const key = getActionKey(tableId, turnToken);
 	const record = storeGet(key);
-	if (!record || record.turnToken !== turnToken) {
+	if (!record) {
 		return null;
 	}
 	storeDelete(key);
