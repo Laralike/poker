@@ -10,9 +10,18 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.21.0";
+export const APP_VERSION = "1.22.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.22.0",
+		date: "2026-09-03",
+		title: "The table catches up the moment you look at it",
+		notes: [
+			"The shared table now notices when it has been in another tab and picks the game straight back up, instead of waiting out pauses that expired long ago. Browsers slow a tab that is not the visible one down to a crawl, and the shared table is the thing actually running the game.",
+			"Keep the shared table on screen while you play. It is the game, not a scoreboard — if it is buried behind another tab, everyone waits.",
+		],
+	},
 	{
 		version: "1.21.0",
 		date: "2026-09-03",

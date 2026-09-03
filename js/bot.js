@@ -245,6 +245,24 @@ function scheduleBotQueue() {
 	}, getBotActionDelay());
 }
 
+// Timers in a tab that is not the visible one are throttled hard by the browser -- to once a
+// second, and after a while once a minute. A queued move can therefore sit far longer than the
+// pause it was given. When the table comes back to the front, let whatever was waiting go at once
+// rather than serving out a pause that has already been served several times over.
+export function wakeBotQueue() {
+	if (!processingBotActions || botActionQueue.length === 0) {
+		return;
+	}
+	if (botActionTimer) {
+		clearTimeout(botActionTimer);
+		botActionTimer = null;
+	}
+	botActionTimer = setTimeout(() => {
+		botActionTimer = null;
+		processBotQueue();
+	}, 0);
+}
+
 export function setBotPlaybackFast(enabled) {
 	runtimeBotPlaybackFast = enabled;
 	if (!processingBotActions || botActionQueue.length === 0) {

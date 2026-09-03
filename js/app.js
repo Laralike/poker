@@ -26,6 +26,7 @@ import {
 	normalizeBotActionRequest,
 	pickBotThinkingTime,
 	setBotPlaybackFast,
+	wakeBotQueue,
 } from "./bot.js";
 import {
 	advanceDealer,
@@ -4142,7 +4143,16 @@ function init() {
 		() => {
 			if (document.visibilityState === "hidden") {
 				handlePageLifecycleSave();
+				return;
 			}
+			// This screen is the game. While it is not the visible tab the browser throttles its
+			// timers to a crawl, so bots stop moving and the seats stop hearing about anything.
+			// Coming back to the front must pick everything up at once rather than waiting out
+			// pauses that expired long ago -- which is why clicking back to the table appeared to
+			// "reset" a stuck game.
+			wakeBotQueue();
+			refreshNotificationPlayback();
+			queueStateSync(0);
 		},
 		false,
 	);
@@ -4205,7 +4215,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-09-03-v16";
+const SERVICE_WORKER_VERSION = "2026-09-03-v17";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

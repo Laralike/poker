@@ -47,6 +47,7 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_flicker.mjs`      | Is the board thrown away and redrawn when nothing has changed? Counts card elements rebuilt while the board is still.                                              |
 | `t_lostmove.mjs [seed] [drop]` | With a quarter of every call dropped on purpose, is anybody ever told their move went missing? Should be nobody, ever. |
 | `t_serverdown.mjs`   | Cut a player off entirely: are they told plainly, and does their turn come back when the connection does? |
+| `t_background.mjs`   | The shared table is put in another tab and brought back: does it pick the game straight back up? |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
 `harness.mjs` builds the table the others share: a static server, a table server, a browser, a game with N humans and M
