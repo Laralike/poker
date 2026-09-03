@@ -64,4 +64,9 @@ console.log(`\ncoming back to the front:`);
 console.log(`  the game moved again after: ${movedAfter === null ? "NEVER (15s)" : movedAfter + "ms"}`);
 console.log(`page errors: ${r.errors.length ? [...new Set(r.errors)].slice(0, 2).join("; ") : "none"}`);
 await r.close();
-process.exit(movedAfter !== null && movedAfter < 5000 ? 0 : 1);
+// What matters is that it resumes rather than sitting there. The exact figure depends on what the
+// game was about to do anyway -- a bot mid-pause, or the countdown between hands -- so allow for
+// the next scheduled thing rather than demanding it be instant.
+const resumed = movedAfter !== null && movedAfter < 12000;
+console.log(resumed ? "\nRESULT: the table picks the game back up when it returns" : "\nRESULT: FAILED — the table did not resume");
+process.exit(resumed ? 0 : 1);

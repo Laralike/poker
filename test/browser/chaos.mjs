@@ -27,7 +27,8 @@ export function makeRandom(seed) {
  */
 export async function abuseNetwork(page, { random, jitter = [40, 500], duplicate = 0.12, drop = 0.05, log = null }) {
   const counts = { delayed: 0, duplicated: 0, dropped: 0 };
-  await page.route("**/127.0.0.1:8010/**", async (route) => {
+  const apiPort = 8010 + Number(process.env.PORT_BASE ?? 0);
+  await page.route(`**/127.0.0.1:${apiPort}/**`, async (route) => {
     const request = route.request();
     const isPost = request.method() === "POST";
     const wait = jitter[0] + random() * (jitter[1] - jitter[0]);

@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.22.0";
+export const APP_VERSION = "1.23.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.23.0",
+		date: "2026-09-03",
+		title: "Pages open instantly, and blips stay invisible",
+		notes: [
+			"Every page waited on a lettering file from Google before it drew anything. On a connection that cannot reach it, that was a thirteen second stare at nothing; the page now appears immediately and the lettering arrives when it does. Opening a seat went from 12.7 seconds to a tenth of a second.",
+			"A single dropped message no longer looks like a lost connection. Your screen checks in with the table several times a second, and one failed check used to hide your buttons and announce a problem — at an ordinary rate of dropped messages that happened a dozen times a minute. It now takes a real run of failures, and the warning clears itself the moment the table answers again.",
+			"On the join screen, a seat someone already has now reads properly instead of running the words together.",
+		],
+	},
 	{
 		version: "1.22.0",
 		date: "2026-09-03",

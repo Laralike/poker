@@ -251,6 +251,41 @@ function requestFullResync() {
 	lastAppliedAt = Date.now();
 }
 
+// A seat asks the table for the state several times a second, so on any real connection some of
+// those asks will fail. Treating a single failure as a lost connection tore the buttons away
+// mid-decision and announced a problem that did not exist: measured at 8% packet loss, the warning
+// was on screen a fifth of the time and the controls vanished 26 times in two minutes.
+//
+// Keep showing the last known state, and only say something once the failures have run on long
+// enough to mean it. Anything shorter is a blip, and a blip should be invisible.
+const FAILED_POLLS_BEFORE_WARNING = 5;
+let failedPolls = 0;
+
+let warningShowing = false;
+
+function noteFailedPoll(message) {
+	failedPolls++;
+	if (failedPolls < FAILED_POLLS_BEFORE_WARNING) {
+		return;
+	}
+	warningShowing = true;
+	setViewSwitchLinkVisible(remoteSwitchLink, false);
+	actionControls.hide();
+	tableControls.hide();
+	setNotification(message);
+}
+
+// Once the table answers again, take the warning down. A quiet spell answers "nothing has changed"
+// rather than sending new state, so without this the warning could sit there long after it stopped
+// being true.
+function notePollSucceeded() {
+	failedPolls = 0;
+	if (warningShowing) {
+		warningShowing = false;
+		setNotification("");
+	}
+}
+
 async function pollState() {
 	if (!tableId || seatIndexParam === null) {
 		return;
@@ -267,12 +302,14 @@ async function pollState() {
 		}&seatIndex=${seatIndexParam}&sinceVersion=${lastVersion}`;
 		const res = await fetch(url, { cache: "no-store" });
 		if (res.status === 204) {
+			notePollSucceeded();
 			if (Date.now() - lastAppliedAt > RESYNC_AFTER_QUIET_MS) {
 				requestFullResync();
 			}
 			return;
 		}
 		if (res.ok) {
+			notePollSucceeded();
 			const payload = await res.json();
 			lastVersion = payload.version;
 			lastAppliedAt = Date.now();
@@ -283,16 +320,10 @@ async function pollState() {
 			// The table was rebuilt under us; a stale version would keep us on 204 forever.
 			requestFullResync();
 		}
-		setViewSwitchLinkVisible(remoteSwitchLink, false);
-		actionControls.hide();
-		tableControls.hide();
-		setNotification("Table unavailable.");
+		noteFailedPoll("Table unavailable.");
 	} catch (error) {
 		console.warn("state fetch failed", error);
-		setViewSwitchLinkVisible(remoteSwitchLink, false);
-		actionControls.hide();
-		tableControls.hide();
-		setNotification("Connection lost.");
+		noteFailedPoll("Connection lost.");
 	} finally {
 		isPolling = false;
 		schedulePoll();

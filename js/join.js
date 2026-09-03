@@ -71,7 +71,7 @@ function renderSeats(tableId, seats) {
 			// back after a browser was closed. Just say so.
 			const note = document.createElement("span");
 			note.className = "join-seat-note";
-			note.textContent = "already on a device";
+			note.textContent = "already open on a device — tap to move here";
 			button.appendChild(note);
 		}
 		button.addEventListener("click", () => {

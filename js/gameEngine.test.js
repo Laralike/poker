@@ -2450,3 +2450,37 @@ Deno.test("runEngineTournament plays a browserless mini tournament to champion",
 		},
 	});
 });
+
+// Blinds have to climb, or a long game never ends and the short stacks are never pressured.
+// This is engine logic, so it can be checked exactly rather than watched for in a browser.
+Deno.test("blinds climb as the hands go by", () => {
+	const state = { blindLevel: 0, smallBlind: 10, bigBlind: 20 };
+	const seen = [{ hand: 0, small: state.smallBlind, big: state.bigBlind }];
+
+	for (let hand = 1; hand <= 120; hand++) {
+		const update = getBlindLevelUpdateForHand(hand, state);
+		if (!update) continue;
+		Object.assign(state, update.gameStatePatch);
+		seen.push({ hand, small: state.smallBlind, big: state.bigBlind });
+	}
+
+	if (seen.length < 2) {
+		throw new Error("blinds never went up in 120 hands");
+	}
+	// Every step must be upward, and the small blind must stay half the big one.
+	for (let i = 1; i < seen.length; i++) {
+		if (seen[i].big <= seen[i - 1].big) {
+			throw new Error(`blinds did not increase at hand ${seen[i].hand}: ${seen[i - 1].big} -> ${seen[i].big}`);
+		}
+		if (seen[i].small * 2 !== seen[i].big) {
+			throw new Error(
+				`small blind is not half the big blind at hand ${seen[i].hand}: ${seen[i].small}/${seen[i].big}`,
+			);
+		}
+	}
+	// And they must actually bite: by 120 hands the big blind should be many times its start.
+	if (seen.at(-1).big < 20 * 4) {
+		throw new Error(`blinds barely moved in 120 hands: ended at ${seen.at(-1).big}`);
+	}
+	console.log(`  blinds over 120 hands: ${seen.map((s) => `h${s.hand}:${s.small}/${s.big}`).join(" ")}`);
+});

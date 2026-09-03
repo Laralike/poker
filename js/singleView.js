@@ -243,6 +243,25 @@ function renderWinProbability(value, shouldShow) {
 
 // Constant polling is intentional.
 // Poker tables have bursty activity; 204 does not imply inactivity ahead.
+// A seat asks the table for the state several times a second, so on any real connection some of
+// those asks will fail. Treating one failure as a lost connection tears the controls away
+// mid-decision over nothing. Keep showing what we last knew, and only give up once the failures
+// have run on long enough to mean something.
+const FAILED_POLLS_BEFORE_OFFLINE = 5;
+let failedPolls = 0;
+
+function noteFailedPoll() {
+	failedPolls++;
+	if (failedPolls < FAILED_POLLS_BEFORE_OFFLINE) {
+		return;
+	}
+	setOnlineElementsVisible(false);
+}
+
+function notePollSucceeded() {
+	failedPolls = 0;
+}
+
 async function pollState() {
 	if (!tableId || seatIndexParam === null) {
 		return;
@@ -258,6 +277,7 @@ async function pollState() {
 		}&seatIndex=${seatIndexParam}&sinceVersion=${lastVersion}`;
 		const res = await fetch(url);
 		if (res.status === 204) {
+			notePollSucceeded();
 			if (Date.now() - lastAppliedAt > RESYNC_AFTER_QUIET_MS) {
 				lastVersion = 0;
 				lastAppliedAt = Date.now();
@@ -266,6 +286,7 @@ async function pollState() {
 			return;
 		}
 		if (res.ok) {
+			notePollSucceeded();
 			const payload = await res.json();
 			lastVersion = payload.version;
 			lastAppliedAt = Date.now();
@@ -275,11 +296,11 @@ async function pollState() {
 				lastVersion = 0;
 				lastAppliedAt = Date.now();
 			}
-			setOnlineElementsVisible(false);
+			noteFailedPoll();
 		}
 	} catch (error) {
 		console.warn("state fetch failed", error);
-		setOnlineElementsVisible(false);
+		noteFailedPoll();
 	} finally {
 		isPolling = false;
 		schedulePoll();

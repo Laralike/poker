@@ -16,7 +16,15 @@
 		<link rel="stylesheet" href="css/style.css">
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Secular+One&display=swap" rel="stylesheet">
+		<!-- Loaded without blocking the page. The game must appear immediately even when this
+			cannot be reached at all: on a network that blocks Google, waiting for it held every page
+			back by about thirteen seconds before anything was drawn. The fallback stack below it
+			carries the layout until the font arrives, if it ever does. -->
+		<link href="https://fonts.googleapis.com/css2?family=Secular+One&display=swap" rel="stylesheet"
+			media="print" onload="this.media='all'; this.onload=null;">
+		<noscript>
+			<link href="https://fonts.googleapis.com/css2?family=Secular+One&display=swap" rel="stylesheet">
+		</noscript>
 	</head>
 
 	<body id="hole-cards">

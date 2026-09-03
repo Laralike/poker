@@ -48,6 +48,12 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_lostmove.mjs [seed] [drop]` | With a quarter of every call dropped on purpose, is anybody ever told their move went missing? Should be nobody, ever. |
 | `t_serverdown.mjs`   | Cut a player off entirely: are they told plainly, and does their turn come back when the connection does? |
 | `t_background.mjs`   | The shared table is put in another tab and brought back: does it pick the game straight back up? |
+| `t_soak.mjs [seed] [mins] [humans]` | A real-length session: many hands with the invariant monitor running throughout. |
+| `t_endgame.mjs`      | Rising blinds, players busting out, all-ins and split pots — are chips still conserved? |
+| `t_rejoin.mjs`       | A player refreshes their own laptop: do their cards and their turn come back? |
+| `t_serverrestart.mjs` | The table server is killed and restarted empty, as a redeploy does. Does the game carry on? |
+| `t_blips.mjs [seed] [drop]` | Does one dropped message get treated as a lost connection? It must not. |
+| `t_basics.mjs`       | The original complaints, re-checked: does it fit on screen, is money in pounds, does "raise to" mean raise to, does joining by code work? |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
 `harness.mjs` builds the table the others share: a static server, a table server, a browser, a game with N humans and M
@@ -65,6 +71,10 @@ Recorded on this machine, so treat them as a baseline to compare against rather 
 - Four-handed: **0** occasions where two people could act at once.
 - Chips conserved through all-ins: **exactly**, every time.
 - Community card elements rebuilt while the board is unchanged: **0** (82 in 12 seconds before v1.19.0).
+- A seat page opening: **~0.1s** (it was 12.7s when the lettering file could not be reached).
+- A player refreshing mid-game: back in **~0.08s** with the same cards and their turn intact.
+- "Connection lost" showing at 8% dropped calls: **0 samples** (it was 165 of 798 before v1.23.0).
+- A 15 minute two-person session: **51 hands, 3596 invariant checks, no violations**, played through to a champion.
 - Told their move went missing, with 25% of calls dropped: **0** over 43 moves (the same run produced **17** before v1.21.0).
 - Told the table is unreachable when it genuinely is: after about **4s**, with the turn returning about **0.4s** after the connection does.
 
@@ -93,3 +103,24 @@ run as weak evidence, not proof. It is worth running long and over several seeds
 specific question well. None of them race anything, because each drives one seat at a time and
 waits politely for the result. That is exactly the blind spot the chaos and protocol layers exist
 to cover.
+
+
+## Running them, and one hard-won rule
+
+**One at a time.** This container cannot carry two browsers at once. Running several in parallel
+produced failures that looked exactly like product bugs and were not — a wasted hour before that
+was understood. `PORT_BASE` shifts both ports if you do need to overlap two on a bigger machine.
+
+Between runs, clear up. A leftover server holds the port, the next run's spawn fails silently, and
+the old one answers with its old configuration:
+
+```
+ps -eo pid,cmd | grep -E "[a]pi/main\.js|[t]est/browser/t_" | awk '{print $1}' \
+  | while read pid; do kill -9 "$pid"; done
+```
+
+The harness now checks that the server answering is the one it started, and says so plainly if not.
+
+**You no longer need to edit `syncConfig.js`.** The harness rewrites the server address as it
+serves the file, so the repository always keeps the deployed address and a localhost URL can never
+be committed by mistake.

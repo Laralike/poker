@@ -8,6 +8,12 @@ import { spawn } from "node:child_process";
 import { chromium } from "playwright";
 
 const ROOT = "/home/user/poker";
+// Each run needs its own pair of ports, or two checks running at once fight over them and one
+// silently serves the other's server. PORT_BASE shifts both.
+const PORT_BASE = Number(process.env.PORT_BASE ?? 0);
+const SITE_PORT = 5500 + PORT_BASE;
+const API_PORT = 8010 + PORT_BASE;
+export const PORTS = { site: SITE_PORT, api: API_PORT };
 const TYPES = {
 	".html": "text/html",
 	".js": "text/javascript",
@@ -24,19 +30,69 @@ export async function rig({ humans = 2, bots = 4, latencyMs = 0, viewport = { wi
 			r.writeHead(404);
 			return r.end();
 		}
+		// Point the page at this run's own server as it is served, rather than editing the file in
+		// the repository. Two good reasons: several checks can then run at once on different ports,
+		// and a localhost address can never be committed to the published site by mistake, which
+		// was a standing risk every time these checks were run by hand.
+		if (f.endsWith(path.join("js", "shared", "syncConfig.js"))) {
+			const source = fs.readFileSync(f, "utf8").replace(
+				/export const SYNC_API_BASE_URL = "[^"]*";/,
+				`export const SYNC_API_BASE_URL = "http://127.0.0.1:${API_PORT}";`,
+			);
+			r.writeHead(200, { "Content-Type": "text/javascript" });
+			return r.end(source);
+		}
+
 		r.writeHead(200, { "Content-Type": TYPES[path.extname(f)] ?? "text/plain" });
 		fs.createReadStream(f).pipe(r);
 	});
-	await new Promise((r) => srv.listen(5500, "127.0.0.1", r));
-	const api = spawn("node", ["api/main.js"], { cwd: ROOT, env: { ...process.env, PORT: "8010" }, stdio: "ignore" });
+	await new Promise((r) => srv.listen(SITE_PORT, "127.0.0.1", r));
+	// The server only answers origins it has been told about, and each run has its own port.
+	const api = spawn("node", ["api/main.js"], {
+		cwd: ROOT,
+		env: {
+			...process.env,
+			PORT: String(API_PORT),
+			ALLOWED_ORIGINS: `http://127.0.0.1:${SITE_PORT},http://localhost:${SITE_PORT}`,
+		},
+		stdio: "ignore",
+	});
 	await new Promise((r) => setTimeout(r, 3000));
+
+	// Make sure the server answering is OUR server. A leftover one from an earlier run holds the
+	// port, the new spawn fails silently, and the old one answers with its old configuration --
+	// which then refuses this run's pages and produces a baffling, unrelated failure. This has
+	// cost hours more than once, so check rather than assume.
+	{
+		let health = null;
+		for (let attempt = 0; attempt < 20 && !health; attempt++) {
+			try {
+				const res = await fetch(`http://127.0.0.1:${API_PORT}/health`);
+				if (res.ok) health = await res.json();
+				else await res.body?.cancel();
+			} catch { /* not up yet */ }
+			if (!health) await new Promise((r) => setTimeout(r, 300));
+		}
+		if (!health) {
+			throw new Error(`no table server answered on ${API_PORT}`);
+		}
+		const expected = `http://127.0.0.1:${SITE_PORT}`;
+		if (!health.allowedOrigins?.includes(expected)) {
+			throw new Error(
+				`the server on port ${API_PORT} is not this run's -- it allows ${JSON.stringify(health.allowedOrigins)} ` +
+					`but this run serves from ${expected}. A leftover server is holding the port; kill it with:\n` +
+					`  ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do kill -9 "$pid"; done`,
+			);
+		}
+	}
+
 	const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 	const errors = [];
 
 	// Delay only the calls that cross to the table's server, the way a real connection would.
 	async function addLatency(page) {
 		if (latencyMs <= 0) return;
-		await page.route("**/127.0.0.1:8010/**", async (route) => {
+		await page.route(`**/127.0.0.1:${API_PORT}/**`, async (route) => {
 			await new Promise((r) => setTimeout(r, latencyMs));
 			await route.continue();
 		});
@@ -47,7 +103,7 @@ export async function rig({ humans = 2, bots = 4, latencyMs = 0, viewport = { wi
 		if (!/ServiceWorker/.test(e.message)) errors.push("table: " + e.message);
 	});
 	await addLatency(table);
-	await table.goto("http://127.0.0.1:5500/index.html", { waitUntil: "domcontentloaded" });
+	await table.goto(`http://127.0.0.1:${SITE_PORT}/index.html`, { waitUntil: "domcontentloaded" });
 	await table.waitForTimeout(900);
 
 	// Dial the counters to the table we want. Humans and bots share the six seats: nudging the
@@ -89,7 +145,7 @@ export async function rig({ humans = 2, bots = 4, latencyMs = 0, viewport = { wi
 		// asking for the seat list before it exists.
 		let listed = null;
 		for (let attempt = 0; attempt < 40 && !listed; attempt++) {
-			const res = await fetch(`http://127.0.0.1:8010/table?tableId=${code}`);
+			const res = await fetch(`http://127.0.0.1:${API_PORT}/table?tableId=${code}`);
 			if (res.ok) {
 				listed = await res.json();
 				break;
@@ -104,7 +160,7 @@ export async function rig({ humans = 2, bots = 4, latencyMs = 0, viewport = { wi
 				if (!/ServiceWorker/.test(e.message)) errors.push(`seat${i}: ` + e.message);
 			});
 			await addLatency(p);
-			await p.goto(`http://127.0.0.1:5500/remoteTable.html?tableId=${code}&seatIndex=${i}`, {
+			await p.goto(`http://127.0.0.1:${SITE_PORT}/remoteTable.html?tableId=${code}&seatIndex=${i}`, {
 				waitUntil: "domcontentloaded",
 			});
 			seats.push({ i, page: p });

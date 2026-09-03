@@ -24,7 +24,13 @@ let message = null;
 const started = Date.now();
 while (Date.now() - started < 30000) {
   const note = await actor.page.evaluate(() => document.getElementById("notification")?.textContent ?? "");
-  if (/Could not reach the table/i.test(note)) { message = { text: note.trim().slice(0, 90), afterMs: Date.now() - started }; break; }
+  // Either message is a correct answer here. The move itself reports that it could not be sent;
+  // the seat's own polling reports that the table has gone quiet. With the connection cut both are
+  // true, and whichever lands last is what the player reads.
+  if (/Could not reach the table|Connection lost/i.test(note)) {
+    message = { text: note.trim().slice(0, 90), afterMs: Date.now() - started };
+    break;
+  }
   await actor.page.waitForTimeout(150);
 }
 

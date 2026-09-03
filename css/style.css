@@ -38,7 +38,7 @@ body {
 	padding: 0;
 	color: var(--font-color);
 	font-size: 100%;
-	font-family: 'Secular One', sans-serif;
+	font-family: 'Secular One', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
 	/* Uses dynamic viewport height for better handling of mobile viewports */
 	min-height: inherit;
 	display: flex;
@@ -87,7 +87,7 @@ button {
 	padding: 1.5vmin 3vmin;
 	margin: 0 2vmin;
 	font-size: 1em;
-	font-family: 'Secular One', sans-serif;
+	font-family: 'Secular One', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
 	border-radius: 1vmin;
 	cursor: pointer;
 	box-shadow: var(--shadow);
@@ -741,6 +741,9 @@ JOIN PAGE
 }
 
 .join-seat-note {
+	/* Its own line under the name, rather than running straight on from it. */
+	display: block;
+	margin-top: 0.15rem;
 	font-size: 0.8rem;
 	opacity: 0.75;
 }
