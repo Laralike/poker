@@ -10,9 +10,17 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.24.0";
+export const APP_VERSION = "1.24.1";
 
 export const VERSION_LOG = [
+	{
+		version: "1.24.1",
+		date: "2026-09-03",
+		title: "The fix reaches previously opened tables",
+		notes: [
+			"A laptop that had opened the table before could stay on its old offline copy after repeated refreshes, even though the new release was live. The offline worker now identifies its own release and refreshes every core file when it installs, so an old page can discover the update without already having the new page code.",
+		],
+	},
 	{
 		version: "1.24.0",
 		date: "2026-09-03",

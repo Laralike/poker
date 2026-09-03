@@ -24,7 +24,10 @@ function getProjectSlugFromSW() {
 }
 
 const PROJECT_SLUG = getProjectSlugFromSW();
-const VERSION = new URL(self.location).searchParams.get("v") || "default";
+// Keep this in step with SERVICE_WORKER_VERSION in js/app.js. It has to live in the worker too:
+// a page running an older cached app still checks this file for changes, so changing the worker's
+// own body is what lets that page discover a new release.
+const VERSION = "2026-09-03-v20";
 const CACHE_PREFIX = `${PROJECT_SLUG}-cache-`;
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 
@@ -81,7 +84,9 @@ const CORE_ASSETS = [
 self.addEventListener("install", (event) => {
 	self.skipWaiting();
 	event.waitUntil(
-		caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)),
+		caches.open(CACHE_NAME).then((cache) => cache.addAll(
+			CORE_ASSETS.map((asset) => new Request(asset, { cache: "reload" })),
+		)),
 	);
 });
 
