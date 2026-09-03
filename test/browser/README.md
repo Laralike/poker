@@ -16,8 +16,7 @@ loads no Node packages and should stay that way. Install it once:
 cd test/browser && npm install
 ```
 
-Chromium is expected at `/opt/pw-browsers/chromium`; change `executablePath` in `harness.mjs` if
-yours lives elsewhere.
+Chromium is expected at `/opt/pw-browsers/chromium`; set `CHROME_BIN` if yours lives elsewhere.
 
 Point the site at a local server first — in `js/shared/syncConfig.js`, set
 `SYNC_API_BASE_URL` to `http://127.0.0.1:8010`, and **put it back to the deployed address before committing**, or the
@@ -53,6 +52,7 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_rejoin.mjs`       | A player refreshes their own laptop: do their cards and their turn come back? |
 | `t_serverrestart.mjs` | The table server is killed and restarted empty, as a redeploy does. Does the game carry on? |
 | `t_blips.mjs [seed] [drop]` | Does one dropped message get treated as a lost connection? It must not. |
+| `t_stateorder.mjs` | Can whole-table snapshots ever be in flight together and arrive backwards? |
 | `t_basics.mjs`       | The original complaints, re-checked: does it fit on screen, is money in pounds, does "raise to" mean raise to, does joining by code work? |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 

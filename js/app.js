@@ -284,6 +284,11 @@ const QUIET_DEVICE_SECONDS = 20;
 const PRESENCE_GRACE_INTERVAL = 2500;
 let stateSyncTimer = null;
 let stateSyncTimerDelay = null;
+// State snapshots are complete replacements on the server. If two are in flight together, an
+// older one can arrive last and make every joined screen jump backwards. Keep the wire ordered and
+// coalesce anything that changes while a request is travelling into one fresh follow-up snapshot.
+let stateSyncInFlight = false;
+let stateSyncRequestedDelay = null;
 let runoutPhaseTimer = null;
 let chipTransferFinishTimer = null;
 let newRoundCountdownTimer = null;
@@ -2179,6 +2184,12 @@ function isRemoteTurnPending() {
 }
 
 async function sendTableState() {
+	if (stateSyncInFlight) {
+		stateSyncRequestedDelay = 0;
+		return;
+	}
+
+	stateSyncInFlight = true;
 	const payload = {
 		tableId: tableId,
 		view: buildSyncView(gameState, notifArr.slice(0, MAX_ITEMS), Date.now(), getTableControls()),
@@ -2206,6 +2217,13 @@ async function sendTableState() {
 		setPresentRemoteSeats([]);
 		setSeatLastSeen({});
 		queueStateSync();
+	} finally {
+		stateSyncInFlight = false;
+		if (stateSyncRequestedDelay !== null) {
+			const nextDelay = stateSyncRequestedDelay;
+			stateSyncRequestedDelay = null;
+			queueStateSync(nextDelay);
+		}
 	}
 }
 
@@ -2213,8 +2231,14 @@ function queueStateSync(delay = STATE_SYNC_DELAY) {
 	if (!hasStateSyncEnabled()) {
 		return;
 	}
-
 	const nextDelay = Math.max(0, delay);
+	if (stateSyncInFlight) {
+		if (stateSyncRequestedDelay === null || nextDelay < stateSyncRequestedDelay) {
+			stateSyncRequestedDelay = nextDelay;
+		}
+		return;
+	}
+
 	if (stateSyncTimer !== null) {
 		if (stateSyncTimerDelay !== null && stateSyncTimerDelay <= nextDelay) {
 			return;
@@ -4215,7 +4239,7 @@ poker.init();
  * - AUTO_RELOAD_ON_SW_UPDATE: reload page once after an update
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
-const SERVICE_WORKER_VERSION = "2026-09-03-v18";
+const SERVICE_WORKER_VERSION = "2026-09-03-v19";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

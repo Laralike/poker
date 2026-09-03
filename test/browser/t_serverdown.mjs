@@ -1,7 +1,7 @@
 // The warning must still appear when it is true. Having stopped people being told their move was
 // lost when it was safely waiting, the opposite mistake would be to say nothing at all when the
 // table really cannot be reached. Kill the server mid-game and check the player is told plainly.
-import { rig } from "./harness.mjs";
+import { rig, PORTS } from "./harness.mjs";
 
 const r = await rig({ humans: 2, bots: 3, latencyMs: 0 });
 
@@ -15,7 +15,8 @@ if (!actor) { console.log("never got a turn on a laptop"); await r.close(); proc
 console.log(`seat ${actor.i} has the action`);
 
 // Pull the plug: every call to the table server now fails outright.
-await actor.page.route("**/127.0.0.1:8010/**", (route) => route.abort("connectionfailed"));
+const apiPattern = `**/127.0.0.1:${PORTS.api}/**`;
+await actor.page.route(apiPattern, (route) => route.abort("connectionfailed"));
 console.log("the connection to the table has been cut for that seat");
 
 await actor.page.click("#action-button", { timeout: 3000 }).catch(() => {});
@@ -39,7 +40,7 @@ if (message) console.log(`  message: "${message.text}"`);
 
 // With no connection at all the seat view cannot draw its controls, which is correct. What matters
 // is that the player is not stranded: once the connection comes back, so must their turn.
-await actor.page.unroute("**/127.0.0.1:8010/**");
+await actor.page.unroute(apiPattern);
 console.log("connection restored");
 let recovered = false;
 const back = Date.now();

@@ -92,7 +92,7 @@ if (!raiseChecked) console.log("  (no raise opportunity came up in the window â€
 
 // ---- 4. Joining by code, from a laptop that has never seen the table ------------------------
 console.log(`\n=== joining by typing the code ===`);
-const browser2 = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser2 = await chromium.launch({ executablePath: process.env.CHROME_BIN ?? "/opt/pw-browsers/chromium" });
 const newcomer = await browser2.newPage({ viewport: { width: 1280, height: 800 } });
 const joinErrors = [];
 newcomer.on("pageerror", (e) => { if (!/ServiceWorker/.test(e.message)) joinErrors.push(e.message); });

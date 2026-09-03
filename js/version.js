@@ -10,9 +10,17 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.23.0";
+export const APP_VERSION = "1.24.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.24.0",
+		date: "2026-09-03",
+		title: "Every screen stays on the same turn",
+		notes: [
+			"The shared table no longer sends overlapping copies of the whole game. On a real connection, an older copy could arrive after a newer one and move joined screens backwards — hiding the current buttons or leaving the table waiting on a turn the player could no longer see. Updates now travel in strict order, with the newest waiting state sent as soon as the current one lands.",
+		],
+	},
 	{
 		version: "1.23.0",
 		date: "2026-09-03",

@@ -5,14 +5,16 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
-const ROOT = "/home/user/poker";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // Each run needs its own pair of ports, or two checks running at once fight over them and one
 // silently serves the other's server. PORT_BASE shifts both.
 const PORT_BASE = Number(process.env.PORT_BASE ?? 0);
 const SITE_PORT = 5500 + PORT_BASE;
 const API_PORT = 8010 + PORT_BASE;
+const CHROME_BIN = process.env.CHROME_BIN ?? "/opt/pw-browsers/chromium";
 export const PORTS = { site: SITE_PORT, api: API_PORT };
 const TYPES = {
 	".html": "text/html",
@@ -86,7 +88,7 @@ export async function rig({ humans = 2, bots = 4, latencyMs = 0, viewport = { wi
 		}
 	}
 
-	const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+	const browser = await chromium.launch({ executablePath: CHROME_BIN });
 	const errors = [];
 
 	// Delay only the calls that cross to the table's server, the way a real connection would.

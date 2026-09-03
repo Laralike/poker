@@ -23,7 +23,7 @@ const srv = http.createServer((q, r) => {
 	fs.createReadStream(f).pipe(r);
 });
 await new Promise((r) => srv.listen(5500, "127.0.0.1", r));
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const b = await chromium.launch({ executablePath: process.env.CHROME_BIN ?? "/opt/pw-browsers/chromium" });
 
 let wins = 0, stalls = 0;
 const allErrors = [];
