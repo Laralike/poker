@@ -10,9 +10,20 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.20.0";
+export const APP_VERSION = "1.21.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.21.0",
+		date: "2026-09-03",
+		title: "Your move waits for the table",
+		notes: [
+			"A move that does not get through first time is now sent again, several times, before anybody is told anything. A single dropped packet used to be enough to warn you, and dropped packets are ordinary.",
+			"Once a move is with the table's server it stays there, offered again every couple of seconds, until the table collects it. Nothing is on a stopwatch any more.",
+			"The old \u201Cthat did not reach the table\u201D message is gone. If your move is waiting to be played, it says so. If the table genuinely cannot be reached, it says that instead, so you know whether pressing again is worth doing.",
+			"Tested by dropping a quarter and then two fifths of every call on purpose: 43 moves, no false alarms. On the previous version the same test produced 17.",
+		],
+	},
 	{
 		version: "1.20.0",
 		date: "2026-09-02",

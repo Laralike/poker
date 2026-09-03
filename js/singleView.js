@@ -109,8 +109,15 @@ const actionControls = createSeatActionControls({
 	sliderOutput: singleSliderOutput,
 	decrementButton: singleAmountDecrementButton,
 	incrementButton: singleAmountIncrementButton,
-	onActionError: () =>
-		renderNotifications(["The table has not picked that up yet — press again if nothing happens."]),
+	// Two different things, and a player deserves to know which. If the move is on the server it is
+	// waiting to be collected and will keep being offered until it is. If it never got there, the
+	// problem is the connection, and pressing again is worth doing.
+	onActionError: (_error, info) =>
+		renderNotifications([
+			info?.reachedServer
+				? "Your move is with the table and waiting to be played. No need to press again."
+				: "Could not reach the table — check your connection, then press again.",
+		]),
 	// Their own move, confirmed on their own screen the instant they press. Whatever the connection
 	// is doing, nobody should be left wondering whether the button worked.
 	onActionSubmitted: (message) => renderNotifications([message]),

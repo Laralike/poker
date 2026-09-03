@@ -45,6 +45,8 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_allin.mjs`        | All-ins and side pots driven from people's laptops — and are chips conserved, with none created or destroyed?                                                      |
 | `t_chaos.mjs [seed] [humans] [secs] [drop]` | Impatient players on a hostile connection, with a monitor asserting things that must NEVER be true. See the note below on what it does and does not catch. |
 | `t_flicker.mjs`      | Is the board thrown away and redrawn when nothing has changed? Counts card elements rebuilt while the board is still.                                              |
+| `t_lostmove.mjs [seed] [drop]` | With a quarter of every call dropped on purpose, is anybody ever told their move went missing? Should be nobody, ever. |
+| `t_serverdown.mjs`   | Cut a player off entirely: are they told plainly, and does their turn come back when the connection does? |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
 `harness.mjs` builds the table the others share: a static server, a table server, a browser, a game with N humans and M
@@ -62,6 +64,8 @@ Recorded on this machine, so treat them as a baseline to compare against rather 
 - Four-handed: **0** occasions where two people could act at once.
 - Chips conserved through all-ins: **exactly**, every time.
 - Community card elements rebuilt while the board is unchanged: **0** (82 in 12 seconds before v1.19.0).
+- Told their move went missing, with 25% of calls dropped: **0** over 43 moves (the same run produced **17** before v1.21.0).
+- Told the table is unreachable when it genuinely is: after about **4s**, with the turn returning about **0.4s** after the connection does.
 
 
 ## What each layer of checking is for, and what it is not

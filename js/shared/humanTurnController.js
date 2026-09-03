@@ -789,6 +789,11 @@ export function createSeatActionControls({
 	actionEndpoint,
 	actionStep = 10,
 	submitRecoveryDelay = 12000,
+	// A dropped packet must not cost somebody their turn, so try again before saying anything.
+	submitAttempts = 4,
+	submitRetryDelay = 400,
+	// How often to put the move back on the server while it is still this player's turn.
+	resendInterval = 2500,
 	visibleElements = [],
 	foldButton,
 	actionButton,
@@ -805,6 +810,10 @@ export function createSeatActionControls({
 	let currentPendingAction = null;
 	let isSubmittingAction = false;
 	let submitRecoveryTimer = null;
+	let resendTimer = null;
+	// Whether the move we are waiting on is known to be sitting on the server. It changes what the
+	// player is told: waiting to be collected is a very different thing from never having arrived.
+	let lastSubmitReachedServer = false;
 	const turnActionUi = createTurnActionUi({
 		visibleElements,
 		foldButton,
@@ -826,9 +835,12 @@ export function createSeatActionControls({
 
 	// The controls stay disabled after a successful submit, because the turn is over as far as this
 	// device is concerned and the next state update takes them away. But if the table never acts on
-	// it -- a dropped request, or a table running an older script that could not read the reply --
-	// the player is left staring at dead buttons for the rest of the hand with no way back. So give
-	// up waiting after a while and let them try again.
+	// it the player is left staring at dead buttons with no way back, so hand the buttons back
+	// after a while.
+	//
+	// Handing the buttons back is not the same as the move being lost. Once the server has accepted
+	// it, it sits there under this turn's own name until the table collects it, so the honest thing
+	// to say is that the table has not got to it yet -- not that it never arrived.
 	function scheduleSubmitRecovery() {
 		clearSubmitRecoveryTimer();
 		submitRecoveryTimer = setTimeout(() => {
@@ -839,9 +851,82 @@ export function createSeatActionControls({
 			isSubmittingAction = false;
 			turnActionUi.setEnabled(true);
 			if (typeof onActionError === "function") {
-				onActionError(new Error("action not acknowledged"));
+				onActionError(new Error("action not acknowledged"), { reachedServer: lastSubmitReachedServer });
 			}
 		}, submitRecoveryDelay);
+	}
+
+	// Keep the move on the server for as long as it is still this player's turn.
+	//
+	// A move that has been accepted is not lost just because the table has not picked it up yet:
+	// the shared screen may be in a background tab, mid-reconnect, or simply between polls. Sending
+	// it again costs almost nothing and is harmless, because moves are filed under the turn they
+	// belong to -- the same move under the same turn overwrites itself, and the table takes it
+	// exactly once. So rather than starting a clock and then blaming the network, the move simply
+	// waits there until it is collected.
+	function scheduleResend(actionRequest, turnToken) {
+		clearResendTimer();
+		resendTimer = setTimeout(async () => {
+			resendTimer = null;
+			// Stop once a different turn is live, or this seat is no longer waiting on a move.
+			if (!isSubmittingAction || (currentPendingAction && currentPendingAction.turnToken !== turnToken)) {
+				return;
+			}
+			const delivered = await postAction(actionRequest, turnToken);
+			if (delivered) {
+				lastSubmitReachedServer = true;
+			}
+			if (isSubmittingAction && (!currentPendingAction || currentPendingAction.turnToken === turnToken)) {
+				scheduleResend(actionRequest, turnToken);
+			}
+		}, resendInterval);
+	}
+
+	function clearResendTimer() {
+		if (resendTimer === null) {
+			return;
+		}
+		clearTimeout(resendTimer);
+		resendTimer = null;
+	}
+
+	// One attempt at putting the move on the server. Returns whether it got there.
+	async function postAction(actionRequest, turnToken) {
+		try {
+			const res = await fetch(actionEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					tableId,
+					seatIndex,
+					turnToken,
+					action: actionRequest.action,
+					amount: actionRequest.amount ?? null,
+				}),
+			});
+			return res.ok;
+		} catch {
+			return false;
+		}
+	}
+
+	// A single dropped packet is the most ordinary thing on a real connection and must not cost
+	// somebody their turn. Try again a few times, backing off, before saying anything at all.
+	async function postActionWithRetries(actionRequest, turnToken) {
+		for (let attempt = 0; attempt < submitAttempts; attempt++) {
+			// A different live turn means ours was taken and played, so stop trying. Simply having
+			// no turn at all is not the same thing: the controls are also cleared when contact with
+			// the table is lost, and mistaking that for success leaves somebody stranded with no
+			// buttons and nothing said to them.
+			if (currentPendingAction && currentPendingAction.turnToken !== turnToken) {
+				return true;
+			}
+			if (await postAction(actionRequest, turnToken)) {
+				return true;
+			}
+			await new Promise((resolve) => setTimeout(resolve, submitRetryDelay * (attempt + 1)));
+		}
+		return false;
 	}
 
 	// What the player just did, said back to them in the same numbers the button showed. There is no
@@ -879,33 +964,29 @@ export function createSeatActionControls({
 			actionRequest,
 		);
 
+		const turnToken = currentPendingAction.turnToken;
 		isSubmittingAction = true;
+		lastSubmitReachedServer = false;
 		turnActionUi.setEnabled(false);
 		scheduleSubmitRecovery();
 
-		try {
-			const res = await fetch(actionEndpoint, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					tableId,
-					seatIndex,
-					turnToken: currentPendingAction.turnToken,
-					action: actionRequest.action,
-					amount: actionRequest.amount ?? null,
-				}),
-			});
-			if (!res.ok) {
-				throw new Error(`action request failed with status ${res.status}`);
-			}
-		} catch (error) {
-			console.warn("action request failed", error);
-			clearSubmitRecoveryTimer();
-			isSubmittingAction = false;
-			turnActionUi.setEnabled(true);
-			if (typeof onActionError === "function") {
-				onActionError(error);
-			}
+		const delivered = await postActionWithRetries(actionRequest, turnToken);
+		if (delivered) {
+			lastSubmitReachedServer = true;
+			// It is on the server now. Keep it there until the table collects it.
+			scheduleResend(actionRequest, turnToken);
+			return;
+		}
+
+		// Every attempt failed, so this is a connection problem rather than a table problem, and
+		// that is what the player should be told.
+		console.warn("could not put the move on the table server after retries");
+		clearSubmitRecoveryTimer();
+		clearResendTimer();
+		isSubmittingAction = false;
+		turnActionUi.setEnabled(true);
+		if (typeof onActionError === "function") {
+			onActionError(new Error("could not reach the table server"), { reachedServer: false });
 		}
 	}
 
@@ -915,6 +996,7 @@ export function createSeatActionControls({
 
 	function hide() {
 		clearSubmitRecoveryTimer();
+		clearResendTimer();
 		currentPendingAction = null;
 		isSubmittingAction = false;
 		turnActionUi.hide();
@@ -929,8 +1011,11 @@ export function createSeatActionControls({
 		const isNewTurn = currentPendingAction?.turnToken !== pendingAction.turnToken;
 		currentPendingAction = pendingAction;
 		if (isNewTurn) {
+			// The turn moved on, so whatever we were holding has been dealt with.
 			clearSubmitRecoveryTimer();
+			clearResendTimer();
 			isSubmittingAction = false;
+			lastSubmitReachedServer = false;
 			onNewTurn?.();
 		}
 		turnActionUi.show(pendingAction, {
