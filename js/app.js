@@ -4240,7 +4240,7 @@ poker.init();
  -------------------------------------------------------------------------------------------------- */
 const USE_SERVICE_WORKER = true;
 // Keep this in step with VERSION in service-worker.js.
-const SERVICE_WORKER_VERSION = "2026-09-03-v20";
+const SERVICE_WORKER_VERSION = "2026-09-04-v21";
 const AUTO_RELOAD_ON_SW_UPDATE = true;
 
 initServiceWorker({

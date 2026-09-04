@@ -38,6 +38,19 @@ for (const size of sizes) {
 await r.table.setViewportSize({ width: 1366, height: 768 });
 await r.seats[0].page.setViewportSize({ width: 1280, height: 800 });
 
+// Fitting is not enough if the table gets there by making everything tiny. These floors are below
+// the intended sizes but above the over-conservative values that prompted this regression check.
+const readableSize = await r.table.evaluate(() => ({
+	seatCardWidth: document.querySelector(".seat:not(.hidden) .hole-cards img")?.getBoundingClientRect().width ?? 0,
+	communityCardWidth: document.querySelector("#community-cards .cardslot")?.getBoundingClientRect().width ?? 0,
+	fontSize: Number.parseFloat(getComputedStyle(document.body).fontSize),
+}));
+console.log(`\n=== readable size at 1366x768 ===`);
+console.log(`  seat cards ${readableSize.seatCardWidth.toFixed(1)}px; community cards ${readableSize.communityCardWidth.toFixed(1)}px; base words ${readableSize.fontSize.toFixed(1)}px`);
+if (readableSize.seatCardWidth < 60) problems.push(`seat cards shrank to ${readableSize.seatCardWidth.toFixed(1)}px`);
+if (readableSize.communityCardWidth < 78) problems.push(`community cards shrank to ${readableSize.communityCardWidth.toFixed(1)}px`);
+if (readableSize.fontSize < 17.5) problems.push(`table words shrank to ${readableSize.fontSize.toFixed(1)}px`);
+
 // ---- 2. Is money shown in pounds? -----------------------------------------------------------
 const money = await r.table.evaluate(() => {
   const text = document.body.innerText;

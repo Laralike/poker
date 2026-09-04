@@ -135,15 +135,13 @@ const actionControls = createSeatActionControls({
 	sliderOutput,
 	decrementButton: amountDecrementButton,
 	incrementButton: amountIncrementButton,
-	// Two different things, and a player deserves to know which. If the move is on the server it
-	// is waiting to be collected and will keep being offered until it is. If it never got there,
-	// the problem is the connection, and pressing again is worth doing.
-	onActionError: (_error, info) =>
-		setNotification(
-			info?.reachedServer
-				? "Your move is with the table and waiting to be played. No need to press again."
-				: "Could not reach the table — check your connection, then press again.",
-		),
+	// If the server has the move, the current turn is still the useful thing to show. Only announce
+	// an error when the move genuinely could not reach the table.
+	onActionError: (_error, info) => setNotification(
+		info?.reachedServer
+			? "Your turn."
+			: "Could not reach the table — check your connection, then press again.",
+	),
 	// Their own move, confirmed on their own screen the instant they press. Whatever the connection
 	// is doing, nobody should be left wondering whether the button worked.
 	onActionSubmitted: (message) => setNotification(message),
@@ -154,7 +152,29 @@ function setNotification(message) {
 	renderNotificationBar(notificationEl, [], message || DEFAULT_NOTIFICATION);
 }
 
-function renderNotifications(messages = []) {
+function getCurrentTurnMessage(tableView) {
+	if (tableView?.activeSeatIndex === null || tableView?.activeSeatIndex === undefined) {
+		return "";
+	}
+
+	const activePlayer = tableView.playersPublic?.find(
+		(player) => player.seatIndex === tableView.activeSeatIndex,
+	);
+	if (!activePlayer) {
+		return "";
+	}
+	if (activePlayer.seatIndex === seatIndexParam) {
+		return "Your turn.";
+	}
+	return activePlayer.isBot
+		? `${activePlayer.name} is thinking…`
+		: `${activePlayer.name}'s turn.`;
+}
+
+function renderNotifications(tableView) {
+	const currentTurnMessage = getCurrentTurnMessage(tableView);
+	const history = Array.isArray(tableView?.notifications) ? tableView.notifications : [];
+	const messages = currentTurnMessage ? [currentTurnMessage, ...history] : history;
 	renderNotificationBar(notificationEl, messages, DEFAULT_NOTIFICATION);
 }
 
@@ -243,7 +263,7 @@ function applyRemoteState(payload) {
 	actionControls.render(seatView, pendingAction);
 	tableControls.render(tableView.tableControls);
 	setViewSwitchLinkVisible(remoteSwitchLink, !showTurnControls);
-	renderNotifications(tableView.notifications);
+	renderNotifications(tableView);
 }
 
 function requestFullResync() {

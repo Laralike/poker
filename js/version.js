@@ -10,9 +10,19 @@ Version log writing guide:
 - Add optional contributor credits as dedicated metadata instead of release notes.
 */
 
-export const APP_VERSION = "1.24.1";
+export const APP_VERSION = "1.25.0";
 
 export const VERSION_LOG = [
+	{
+		version: "1.25.0",
+		date: "2026-09-04",
+		title: "The middle of the table keeps up",
+		notes: [
+			"The first words in the middle now say whose turn it is, directly from the live table state, with recent play following behind them. They can no longer lag behind the highlighted player and action buttons.",
+			"The unnecessary message saying a move is waiting and not to press again is gone.",
+			"Cards and table lettering are larger on landscape screens, while height limits still keep the whole game fitted to shorter laptops.",
+		],
+	},
 	{
 		version: "1.24.1",
 		date: "2026-09-03",

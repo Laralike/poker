@@ -5,7 +5,8 @@
 // The connection here drops a large share of calls outright -- far worse than any real one -- and
 // duplicates others. A single dropped packet used to warn immediately, because the move was sent
 // once and never again. It should now be retried, and then kept on the server until the table
-// collects it, so a player only ever hears about a connection they genuinely cannot reach.
+// collects it. A player should only ever hear about a connection they genuinely cannot reach;
+// the old instruction about waiting and not pressing again should not appear either.
 import { rig } from "./harness.mjs";
 import { abuseNetwork, makeRandom } from "./chaos.mjs";
 
@@ -68,8 +69,8 @@ console.log(`"could not reach the table" (genuinely unreachable): ${seen.unreach
 console.log(`OLD "your move did not reach the table": ${seen.lost}`);
 if (examples.size) console.log(`messages seen:\n  ${[...examples].join("\n  ")}`);
 console.log(`page errors: ${r.errors.length ? [...new Set(r.errors)].slice(0, 2).join("; ") : "none"}`);
-console.log(seen.lost === 0
-  ? `\nRESULT: nobody was told their move went missing`
-  : `\nRESULT: FAILED — the lost-move message appeared ${seen.lost} times`);
+console.log(seen.lost === 0 && seen.waiting === 0
+	? `\nRESULT: nobody was told their move went missing or to wait`
+	: `\nRESULT: FAILED — lost appeared ${seen.lost} times; waiting appeared ${seen.waiting} times`);
 await r.close();
-process.exit(seen.lost === 0 ? 0 : 1);
+process.exit(seen.lost === 0 && seen.waiting === 0 ? 0 : 1);

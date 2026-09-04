@@ -316,7 +316,7 @@ main {
 }
 
 main .seat {
-	width: min(22vmin, 16vh);
+	width: min(24vmin, 18vh);
 	/* Three columns of a flat 120px minimum overflowed anything narrower than ~370px, which forced
 	   a horizontal scroll and pushed the controls out of reach. */
 	min-width: min(120px, 30vw);
@@ -574,7 +574,7 @@ TABLE-MIDDLE
 }
 
 .cardslot {
-	width: min(16vmin, 9.2vh);
+	width: min(17vmin, 10.4vh);
 	height: auto;
 	aspect-ratio: 5/7;
 	border-radius: 1vmin;
@@ -1416,7 +1416,7 @@ PLAYER
 }
 
 .hole-cards img {
-	width: min(10vmin, 6.9vh);
+	width: min(11vmin, 7.8vh);
 	margin: 0.5vmin;
 }
 
@@ -1428,13 +1428,13 @@ PLAYER
 
 .hole-cards img:nth-of-type(1) {
 	transform: rotate(-2deg);
-	min-width: min(70px, 7.2vh);
+	min-width: min(78px, 8.1vh);
 }
 
 .hole-cards img:nth-of-type(2) {
 	transform: rotate(3deg);
 	position: absolute;
-	min-width: min(70px, 7.2vh);
+	min-width: min(78px, 8.1vh);
 	right: 0;
 }
 
@@ -1680,6 +1680,14 @@ MEDIA QUERIES
 
 	img {
 		filter: brightness(0.8);
+	}
+}
+
+/* A landscape table has room for comfortably readable cards and labels. Height-based caps still
+   shrink them on short screens, and the portrait rules below continue to protect narrow phones. */
+@media (min-width: 821px) and (orientation: landscape) {
+	body {
+		font-size: 110%;
 	}
 }
 

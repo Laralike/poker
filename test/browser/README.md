@@ -53,6 +53,7 @@ ps -eo pid,cmd | grep "[a]pi/main.js" | awk '{print $1}' | while read pid; do ki
 | `t_serverrestart.mjs` | The table server is killed and restarted empty, as a redeploy does. Does the game carry on? |
 | `t_blips.mjs [seed] [drop]` | Does one dropped message get treated as a lost connection? It must not. |
 | `t_stateorder.mjs` | Can whole-table snapshots ever be in flight together and arrive backwards? |
+| `t_currentstatus.mjs` | Do the first words in the middle match the currently highlighted player on every joined view? |
 | `t_basics.mjs`       | The original complaints, re-checked: does it fit on screen, is money in pounds, does "raise to" mean raise to, does joining by code work? |
 | `t_walkaway.mjs`     | Somebody shuts their laptop mid-turn: how long until the others are warned, and until the shared table can take the turn back?                                     |
 
